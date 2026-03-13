@@ -1,0 +1,4 @@
+﻿/* src/index.css - 全選替換 */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

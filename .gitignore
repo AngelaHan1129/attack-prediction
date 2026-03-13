@@ -1,31 +1,19 @@
-# Python 虛擬環境 (conda 或 venv)
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
-*.py[cod]
-*$py.class
-
-# 虛擬環境
-venv/
-env/
+*.pyc
 .venv/
-yolo/  # 你自訂的環境名，例如 yolo-env 就寫 yolo-env/
-
-# 環境變數與依賴
 .env
-.venv
-env/
-ENV/
 
-# pip
-pip-log.txt
-pip-delete-this-directory.txt
+# Node
+node_modules/
+dist/
 
-# 依賴清單（自己 commit 這兩個）
-# requirements.txt
-# Pipfile.lock
+# Docker
+.dockerignore
 
-# 其他 OS / 編輯器垃圾
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
+# 模型權重 (太大)
+backend/static/models/*.pt
+backend/static/models/*.pth
+
+# 資料庫
+*.db
