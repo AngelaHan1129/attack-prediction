@@ -17,3 +17,16 @@ backend/static/models/*.pth
 
 # 資料庫
 *.db
+# venv
+.venv/
+backend/.venv/
+backend/__pycache__/
+backend/*.pyc
+backend/app.db
+# node
+frontend/node_modules/
+frontend/.nuxt/
+frontend/dist/
+# env
+.env
+*.log
