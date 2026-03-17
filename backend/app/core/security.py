@@ -15,19 +15,19 @@ def get_password_hash(password: str) -> str:
     truncated = password.encode('utf-8')[:72].decode('utf-8')
     return pwd_context.hash(truncated)
 
-
-def create_access_token(subject: str | Any, roles: str = "user", expires_delta: timedelta | None = None) -> str:
+def create_access_token(subject: Any, roles: str = "user", expires_delta: timedelta | None = None) -> str:
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode = {"exp": expire, "sub": subject, "roles": roles}
+    to_encode = {"exp": expire, "sub": str(subject), "roles": roles}  # ← str(subject)
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 def verify_token(token: str) -> dict:
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
-        return payload
-    except JWTError:
+        return payload if payload else {}
+    except JWTError as e:
+        print(f"JWT decode error: {e}")  # 除錯
         return {}
