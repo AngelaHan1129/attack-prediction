@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { MouseEvent } from 'react';
-import bgImage from '../assets/login-bg.jpg';
+import bgImage from '../assets/login-bg4.jpg';
 
 const LoginForm: React.FC = () => {
   const [isLogin, setIsLogin] = useState<boolean>(true);
@@ -46,7 +46,7 @@ const LoginForm: React.FC = () => {
           transition: 'transform 120ms ease-out',
         }}
       >
-        <div className="absolute -top-16 left-[-4rem] h-80 w-80 rounded-full bg-cyan-400/20 blur-3xl" />
+        <div className="absolute -top-16 left-[-4rem] h-80 w-80 rounded-full bg-cyan-00/20 blur-3xl" />
         <div className="absolute bottom-[-5rem] right-[-2rem] h-96 w-96 rounded-full bg-fuchsia-500/20 blur-3xl" />
         <div className="absolute top-[30%] left-[45%] h-72 w-72 rounded-full bg-emerald-400/10 blur-3xl" />
       </div>
