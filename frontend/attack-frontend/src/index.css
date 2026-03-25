@@ -1,3 +1,38 @@
 ﻿@tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@font-face {
+  font-family: 'AppLatin';
+  src: url('./assets/fonts/Montserrat-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  unicode-range:
+    U+0000-00FF,   /* Basic Latin + Latin-1 Supplement */
+    U+0100-024F,   /* Latin Extended */
+    U+0259,
+    U+1E00-1EFF,   /* Latin Extended Additional */
+    U+20,
+    U+2C60-2C7F,
+    U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'AppCJK';
+  src: url('./assets/fonts/NotoSans_SemiCondensed-Thin.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range:
+    U+4E00-9FFF,   /* CJK Unified Ideographs */
+    U+3400-4DBF,   /* CJK Extension A */
+    U+3000-303F,   /* CJK Symbols and Punctuation */
+    U+FF00-FFEF,   /* Fullwidth Forms */
+    U+31C0-31EF,
+    U+2E80-2EFF;
+}
+
+body {
+  font-family: 'AppLatin', 'AppCJK', sans-serif;
+}
