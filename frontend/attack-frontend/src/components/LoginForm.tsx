@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import type { MouseEvent } from 'react';
 
-// 請確保路徑正確，或根據你的專案結構調整
 import bgWebm from '../assets/login-bg.webm';
 import bgPoster from '../assets/work-space.svg';
+import bgOverlay from '../assets/hlogo-bg2_al.png';
+
 
 const LoginForm: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -31,14 +32,17 @@ const LoginForm: React.FC = () => {
       onMouseLeave={handleMouseLeave}
     >
       {/* --- 影片背景層：靠右放大重點 --- */}
+      {/* --- 背景層 --- */}
       <div className="absolute inset-0 z-0 overflow-hidden">
+        {/* video */}
         <video
           className="
-            absolute bottom-0 h-full 
-            w-[90%] md:w-[110%] xl:w-[130%] 2xl:w-[150%]
-            -left-[250px] md:-left-[350px] xl:-left-[550px] 2xl:-left-[750px]
-            object-cover object-left 
-          "
+      absolute bottom-0 h-full 
+      w-[90%] md:w-[110%] xl:w-[130%] 2xl:w-[150%]
+      -left-[250px] md:-left-[350px] xl:-left-[550px] 2xl:-left-[750px]
+      object-cover object-left
+      z-0
+    "
           autoPlay
           loop
           muted
@@ -49,7 +53,23 @@ const LoginForm: React.FC = () => {
           <source src={bgWebm} type="video/webm" />
           您的瀏覽器不支援影片播放
         </video>
+
+        {/* 疊加圖片 */}
+        <img
+          src={bgOverlay}
+          alt="background overlay"
+          className="
+      pointer-events-none
+      absolute bottom-0
+      h-full
+      w-[90%] md:w-[110%] xl:w-[130%] 2xl:w-[150%]
+      object-cover object-left
+      z-[1]
+      opacity-80
+    "
+        />
       </div>
+
 
       {/* 黑色半透明遮罩：左到右、深到淺 */}
       <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-r from-gray-40 via-black/10 to-transparent" />
