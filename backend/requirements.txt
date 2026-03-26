@@ -1,10 +1,27 @@
+# --- Web Framework & Server ---
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
+python-multipart==0.0.9
+
+# --- Database & Migrations ---
 sqlalchemy==2.0.35
 alembic==1.13.2
+pydantic-settings==2.5.2
+
+# --- Security & Auth ---
 bcrypt==4.0.1
 passlib[bcrypt]==1.7.4
 python-jose[cryptography]==3.3.0
-pydantic-settings==2.5.2
-python-multipart==0.0.9
-argon2-cffi==23.1.0 
+argon2-cffi==23.1.0
+
+# --- Computer Vision & AI ---
+ultralytics==8.3.0          # 建議鎖定一個較新的穩定版本
+opencv-python               # 如果要部屬到 Linux 建議改用 opencv-python-headless
+numpy<2.0.0                 # 關鍵：目前許多 AI 套件(如 Torch)與 NumPy 2.x 仍有相容性問題
+torch                       # 建議根據你的 GPU (CUDA) 版本另外安裝
+torchvision
+# torchreid                 # 註：torchreid 通常需要從 GitHub 安裝，或確認名稱是否正確
+
+# --- Utilities ---
+python-dotenv               # 讀取 .env 檔案必備
+psutil                      # 監控系統資源 (選擇性)
