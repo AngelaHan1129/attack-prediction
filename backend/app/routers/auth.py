@@ -26,6 +26,22 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     db.refresh(db_user)  # 重新載入 ID
     return {"msg": "註冊成功", "user_id": db_user.id}
 
+@router.post("/register/admin", response_model=dict)
+def register_admin(user: UserCreate, db: Session = Depends(get_db)):
+    db_user = db.query(User).filter(User.email == user.email).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="郵箱已存在")
+    
+    hashed_password = get_password_hash(user.password)
+    db_user = User(
+        email=user.email,
+        hashed_password=hashed_password,
+        is_admin=True  # ← 直接設為 admin
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return {"msg": "管理員註冊成功", "user_id": db_user.id}
 
 @router.post("/token", response_model=Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):

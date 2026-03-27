@@ -31,13 +31,13 @@ def run_detection(source="0", conf=0.5, save=False, task_id="default"):
     snapshot_dir = os.path.join("data", "snapshots")
     os.makedirs(snapshot_dir, exist_ok=True)
 
-    print(f"🚀 任務 {task_id} 開始執行...")
+    print(f"任務 {task_id} 開始執行...")
 
     try:
         while cap.isOpened():
             # 檢查外部停止訊號
             if stop_events.get(task_id):
-                print(f"🛑 任務 {task_id} 接收到停止指令")
+                print(f"任務 {task_id} 接收到停止指令")
                 break
 
             ret, frame = cap.read()
@@ -76,4 +76,4 @@ def run_detection(source="0", conf=0.5, save=False, task_id="default"):
         cap.release()
         cv2.destroyAllWindows()
         stop_events.pop(task_id, None)
-        print(f"✅ 任務 {task_id} 已安全結束")
+        print(f"任務 {task_id} 已安全結束")
