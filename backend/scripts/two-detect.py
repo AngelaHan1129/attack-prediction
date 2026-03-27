@@ -10,7 +10,7 @@ import os
 # =========================
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # 取得 backend 目錄
 MODEL_PATH = os.path.join(BASE_DIR, "weights", "yolo26n.pt")
-TRACKER_PATH = "custom_botsort.yaml"
+# TRACKER_PATH = "custom_botsort.yaml"
 
 CAMERA_0 = 0
 CAMERA_1 = 1
@@ -218,44 +218,42 @@ def draw_person(frame, box, person_id, track_id, note, color=(0, 255, 0)):
                 cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
 
 
+
 def process_camera_frame(model, frame, camera_name):
     results = model.track(
         frame,
-        persist=True,
         classes=[0],
         conf=CONF,
         imgsz=IMG_SIZE,
-        tracker=TRACKER_PATH,
+        persist=True,           
+        tracker="bytetrack.yaml",
         verbose=False
     )
 
     result = results[0]
     vis = frame.copy()
 
+    # 確保有 boxes 且有 track id
     if result.boxes is None or result.boxes.id is None:
         return vis
 
-    boxes = result.boxes.xyxy.int().cpu().tolist()
-    track_ids = result.boxes.id.int().cpu().tolist()
-    confs = result.boxes.conf.cpu().tolist()
+    boxes     = result.boxes.xyxy.int().cpu().tolist()
+    track_ids = result.boxes.id.int().cpu().tolist()  # ← 真正的 Track ID
+    confs     = result.boxes.conf.cpu().tolist()
 
     for box, track_id, conf in zip(boxes, track_ids, confs):
-        x1, y1, x2, y2 = box
         crop = safe_crop(frame, box)
-        emb = extract_simple_embedding(crop)
+        emb  = extract_simple_embedding(crop)
 
         if emb is None:
+            x1, y1, x2, y2 = box
             cv2.rectangle(vis, (x1, y1), (x2, y2), (0, 180, 255), 2)
-            cv2.putText(vis, f"track:{track_id} low-quality",
-                        (x1, max(20, y1 - 10)),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 180, 255), 2)
             continue
 
         person_id, note = resolve_person_id(camera_name, track_id, emb)
         draw_person(vis, box, person_id, track_id, f"{note} c:{conf:.2f}")
 
     return vis
-
 
 def open_camera(index):
     cap = cv2.VideoCapture(index, CAM_BACKEND)
@@ -265,10 +263,7 @@ def open_camera(index):
 
 
 def main():
-    global person_db, track_to_person
-
-    model1 = YOLO(MODEL_PATH)
-    model2 = YOLO(MODEL_PATH)
+    model = YOLO(MODEL_PATH)
 
     cap1 = open_camera(CAMERA_0)
     cap2 = open_camera(CAMERA_1)
@@ -294,8 +289,8 @@ def main():
 
         cleanup_person_db()
 
-        out1 = process_camera_frame(model1, frame1, "cam0")
-        out2 = process_camera_frame(model2, frame2, "cam1")
+        out1 = process_camera_frame(model, frame1, "cam0")
+        out2 = process_camera_frame(model, frame2, "cam1")
 
         now = time.time()
         fps = 1.0 / max(now - prev_time, 1e-6)

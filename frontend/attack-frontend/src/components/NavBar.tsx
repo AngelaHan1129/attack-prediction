@@ -49,6 +49,7 @@ const NavBar: React.FC = () => {
                 </Link>
               )
             })}
+            
           </div>
 
           <div className="ml-2 shrink-0">
@@ -68,6 +69,7 @@ const NavBar: React.FC = () => {
               </Link>
             )}
           </div>
+          
         </div>
       </nav>
     </div>
