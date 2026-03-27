@@ -14,15 +14,14 @@ const NavBar: React.FC = () => {
   const shouldHideNav =
     location.pathname === '/login' ||
     location.pathname === '/register' ||
-    location.pathname.startsWith('/dashboard')
-
+    location.pathname === '/'
   if (shouldHideNav) {
     return null
   }
 
   const handleLogout = (): void => {
     localStorage.removeItem('token')
-    navigate('/')
+    navigate('/login')
   }
 
   const navItems: NavItem[] = isLoggedIn
@@ -41,11 +40,10 @@ const NavBar: React.FC = () => {
                 <Link
                   key={item.to}
                   to={item.to}
-                  className={`rounded-full px-4 py-2 text-xs font-semibold transition-all duration-300 ${
-                    isActive
+                  className={`rounded-full px-4 py-2 text-xs font-semibold transition-all duration-300 ${isActive
                       ? 'bg-lime-400 text-black shadow-[0_0_16px_rgba(163,230,53,0.35)]'
                       : 'text-slate-700 hover:bg-lime-100 hover:text-slate-900'
-                  }`}
+                    }`}
                 >
                   {item.label}
                 </Link>

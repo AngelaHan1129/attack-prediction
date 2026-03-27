@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import type { MouseEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 import bgWebm from '../assets/login-bg.webm';
 import bgPoster from '../assets/work-space.svg';
@@ -7,10 +9,36 @@ import bgOverlay from '../assets/hlogo-bg2_al.png';
 
 
 const LoginForm: React.FC = () => {
+  const { login, register } = useAuth();
+  const navigate = useNavigate();
+
   const [isLogin, setIsLogin] = useState(true);
   const [mouseX, setMouseX] = useState(0);
   const [mouseY, setMouseY] = useState(0);
 
+  // 新增這三個 state
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      if (isLogin) {
+        await login(email, password);
+      } else {
+        await register(email, password);
+      }
+      navigate('/dashboard');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : '發生錯誤');
+    } finally {
+      setLoading(false);
+    }
+  };
   const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
     // 在行動裝置（觸控）上關閉 3D 效果以維持穩定性
     if (window.innerWidth < 1024) return;
@@ -128,7 +156,7 @@ const LoginForm: React.FC = () => {
           </div>
 
           {/* 表單欄位 */}
-          <form className="w-full space-y-3 md:space-y-4">
+          <form className="w-full space-y-3 md:space-y-4" onSubmit={handleSubmit}>
             {!isLogin && (
               <div className="space-y-1">
                 <label className="block px-2 text-[10px] font-semibold text-black/75 md:text-sm">顯示名稱</label>
@@ -144,8 +172,12 @@ const LoginForm: React.FC = () => {
               <label className="block px-2 text-[10px] font-semibold text-black/75 md:text-sm">電子郵件</label>
               <input
                 type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full rounded-full border border-black/10 bg-white/70 px-4 py-2 text-xs text-black placeholder-black/30 shadow-inner transition-all focus:border-lime-500/50 focus:outline-none focus:ring-4 focus:ring-lime-500/10 md:px-5 md:py-2.5 md:text-sm"
                 placeholder="user@example.com"
+                required
               />
             </div>
 
@@ -153,14 +185,19 @@ const LoginForm: React.FC = () => {
               <label className="block px-2 text-[10px] font-semibold text-black/75 md:text-sm">密碼</label>
               <input
                 type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 className="w-full rounded-full border border-black/10 bg-white/70 px-4 py-2 text-xs text-black placeholder-black/30 shadow-inner transition-all focus:border-lime-500/50 focus:outline-none focus:ring-4 focus:ring-lime-500/10 md:px-5 md:py-2.5 md:text-sm"
                 placeholder="至少 8 個字元"
+                required
               />
             </div>
 
             {/* 提交按鈕 */}
             <button
               type="submit"
+              disabled={loading}
               className="
             group relative w-full overflow-hidden rounded-full
             px-6 py-4 text-lg font-black tracking-wide text-black
@@ -174,7 +211,9 @@ const LoginForm: React.FC = () => {
           "
             >
               <span className="pointer-events-none absolute inset-x-[8%] top-[10%] h-[45%] rounded-full bg-white/30 blur-md" />
-              <span className="relative z-10">{isLogin ? '進入系統' : '建立帳號'}</span>
+              <span className="relative z-10">
+                {loading ? '處理中...' : isLogin ? '進入系統' : '建立帳號'}
+              </span>
             </button>
           </form>
 

@@ -1,17 +1,21 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
-# 確保路徑正確引入
 from app.routers import auth, users, yolo 
 
-# 1. 建立 FastAPI 實例，變數名必須是 app
 app = FastAPI(title="Attack Prediction API")
 
-# 2. 註冊所有路由
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(yolo.router)
 
-# 3. 自定義 OpenAPI Schema (讓 Swagger 顯示 Authorize 鎖頭)
 def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema
@@ -23,11 +27,9 @@ def custom_openapi():
         routes=app.routes,
     )
     
-    # 確保 components 鍵存在
     if "components" not in openapi_schema:
         openapi_schema["components"] = {}
     
-    # 定義 Security Scheme
     openapi_schema["components"]["securitySchemes"] = {
         "bearer": {
             "type": "http",
@@ -40,10 +42,8 @@ def custom_openapi():
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
-# 將自定義函式掛載
 app.openapi = custom_openapi
 
-# (可選) 根目錄測試
 @app.get("/")
 async def root():
     return {"message": "Backend API is running"}
