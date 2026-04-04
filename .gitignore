@@ -19,7 +19,7 @@ backend/static/models/*.pth
 *.db
 # venv
 .venv/
-backend/.venv/
+backend/venv/
 backend/__pycache__/
 backend/*.pyc
 backend/app.db

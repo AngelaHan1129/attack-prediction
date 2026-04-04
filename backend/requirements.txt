@@ -15,13 +15,19 @@ python-jose[cryptography]==3.3.0
 argon2-cffi==23.1.0
 
 # --- Computer Vision & AI ---
-ultralytics==8.3.0          # 建議鎖定一個較新的穩定版本
-opencv-python               # 如果要部屬到 Linux 建議改用 opencv-python-headless
-numpy<2.0.0                 # 關鍵：目前許多 AI 套件(如 Torch)與 NumPy 2.x 仍有相容性問題
-torch                       # 建議根據你的 GPU (CUDA) 版本另外安裝
-torchvision
-# torchreid                 # 註：torchreid 通常需要從 GitHub 安裝，或確認名稱是否正確
+ultralytics==8.3.0
+opencv-python-headless==4.9.0.80            # Linux 伺服器用 headless，Windows 你可以用一般的 opencv-python
+numpy<2.0.0,>=1.23                           # 明確版本區間，避免裝到 2.x
+
+# --- Torch（建議指定版本，避免每次隨便抓一個） ---
+# CPU 版本範例（可依你實際環境調整）
+torch==2.11.0+cpu
+torchvision==0.19.1+cpu
 
 # --- Utilities ---
-python-dotenv               # 讀取 .env 檔案必備
-psutil                      # 監控系統資源 (選擇性)
+python-dotenv==1.0.0
+psutil==5.9.8
+
+# --- 其他可選（如果你有空間、CPU 跑得動） ---
+mediapipe==0.10.33                           # 你已經成功安裝了
+# 之後如果要再用 torchreid，也可以加（但實際上是 GitHub 安裝，不一定要寫進 requirements）
