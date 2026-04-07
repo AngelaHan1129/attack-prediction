@@ -12,6 +12,7 @@ from torchvision.models import resnet50, ResNet50_Weights
 import torch.nn as nn
 import torchreid
 import mediapipe as mp
+from app.data_recorder import DataRecorder
 
 # === 替換為專門針對行人 ReID 訓練的模型 ===
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

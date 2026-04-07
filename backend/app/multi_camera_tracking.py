@@ -5,6 +5,9 @@ import time
 from collections import defaultdict
 import os
 
+from app.data_recorder import DataRecorder  # ★ 新增：匯入 Recorder
+
+
 # =========================
 # 路徑設定
 # =========================
@@ -30,11 +33,15 @@ MAX_TRACK_HISTORY = 30
 track_history_cam0 = defaultdict(list)
 track_history_cam1 = defaultdict(list)
 
+# 幀計數器（每個 camera 各自累加）
+frame_idx_cam0 = 0
+frame_idx_cam1 = 0
+
 
 # =========================
 # 工具函式
 # =========================
-def open_camera(index):
+def open_camera(index: int):
     cap = cv2.VideoCapture(index, CAM_BACKEND)
     if not cap.isOpened():
         return None
@@ -81,22 +88,23 @@ def draw_tracks(vis, boxes, track_ids, confs, track_history, camera_name):
         cv2.circle(vis, (cx, cy), 4, (0, 255, 255), -1)
 
 
-def process_camera_frame(model, frame, camera_name, track_history):
+def process_camera_frame(model, frame, camera_name, track_history, recorder, frame_idx: int):
     """
-    對單一鏡頭畫面做 YOLO + ByteTrack
+    對單一鏡頭畫面做 YOLO + ByteTrack，並把每幀結果寫入 DataRecorder
     """
     results = model.track(
         frame,
-        classes=[0],                  # 只追蹤 person
+        classes=[0],                 # 只追蹤 person
         conf=CONF,
         imgsz=IMG_SIZE,
-        persist=True,                 # 關鍵：保留前一幀追蹤狀態
-        tracker=TRACKER_PATH,         # 使用自訂 ByteTrack 設定
+        persist=True,                # 關鍵：保留前一幀追蹤狀態
+        tracker=TRACKER_PATH,        # 使用自訂 ByteTrack 設定
         verbose=False
     )
 
     result = results[0]
     vis = frame.copy()
+    ts = time.time()
 
     # 若當前幀沒有追到任何有效 ID
     if result.boxes is None or result.boxes.id is None or len(result.boxes) == 0:
@@ -110,15 +118,38 @@ def process_camera_frame(model, frame, camera_name, track_history):
     track_ids = result.boxes.id.int().cpu().tolist()
     confs = result.boxes.conf.cpu().tolist()
 
+    # 逐個 track 寫入 recorder
+    for box, track_id, conf in zip(boxes, track_ids, confs):
+        # 這裡暫時用 track_id 當作 person_id（還沒接 ReID 時）
+        person_id = int(track_id)
+
+        # Recorder 目前版本需要：frame_idx, timestamp, camera_id,
+        # person_id, track_id, bbox, reid_score, landmarks
+        recorder.record_frame(
+            frame_idx=frame_idx,
+            timestamp=ts,
+            camera_id=camera_name,
+            person_id=person_id,
+            track_id=int(track_id),
+            bbox=box,
+            reid_score=float(conf),  # 先暫用 detection conf 當作 reid_score 佔位
+            landmarks=None,          # 之後接 MediaPipe Pose 再填 33x3
+        )
+
     draw_tracks(vis, boxes, track_ids, confs, track_history, camera_name)
     return vis
 
 
 def main():
+    global frame_idx_cam0, frame_idx_cam1
+
     # 1. 載入模型
     model = YOLO(MODEL_PATH)
 
-    # 2. 開啟鏡頭
+    # 2. 建立一個 Recorder session
+    recorder = DataRecorder()  # 可改 DataRecorder(session_name="your_name")
+
+    # 3. 開啟鏡頭
     cap1 = open_camera(CAMERA_0)
     cap2 = open_camera(CAMERA_1)
 
@@ -133,47 +164,57 @@ def main():
 
     prev_time = time.time()
 
-    while True:
-        ret1, frame1 = cap1.read()
-        ret2, frame2 = cap2.read()
+    try:
+        while True:
+            ret1, frame1 = cap1.read()
+            ret2, frame2 = cap2.read()
 
-        if not ret1 or not ret2:
-            print("其中一台鏡頭讀取失敗")
-            break
+            if not ret1 or not ret2:
+                print("其中一台鏡頭讀取失敗")
+                break
 
-        # 3. 各自處理每台鏡頭
-        out1 = process_camera_frame(model, frame1, "cam0", track_history_cam0)
-        out2 = process_camera_frame(model, frame2, "cam1", track_history_cam1)
+            # 4. 各自處理每台鏡頭（並寫入 recorder）
+            out1 = process_camera_frame(
+                model, frame1, "cam0", track_history_cam0, recorder, frame_idx_cam0
+            )
+            out2 = process_camera_frame(
+                model, frame2, "cam1", track_history_cam1, recorder, frame_idx_cam1
+            )
+            frame_idx_cam0 += 1
+            frame_idx_cam1 += 1
 
-        # 4. FPS 顯示
-        now = time.time()
-        fps = 1.0 / max(now - prev_time, 1e-6)
-        prev_time = now
+            # 5. FPS 顯示
+            now = time.time()
+            fps = 1.0 / max(now - prev_time, 1e-6)
+            prev_time = now
 
-        cv2.putText(
-            out1, f"cam0 FPS:{fps:.1f}", (20, 60),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2
-        )
-        cv2.putText(
-            out2, f"cam1 FPS:{fps:.1f}", (20, 60),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2
-        )
+            cv2.putText(
+                out1, f"cam0 FPS:{fps:.1f}", (20, 60),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2
+            )
+            cv2.putText(
+                out2, f"cam1 FPS:{fps:.1f}", (20, 60),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 0), 2
+            )
 
-        # 5. 拼接雙鏡畫面
-        combined = np.hstack([
-            cv2.resize(out1, (640, 480)),
-            cv2.resize(out2, (640, 480))
-        ])
+            # 6. 拼接雙鏡畫面
+            combined = np.hstack([
+                cv2.resize(out1, (640, 480)),
+                cv2.resize(out2, (640, 480))
+            ])
 
-        cv2.imshow("YOLO + ByteTrack Stable Tracking", combined)
+            cv2.imshow("YOLO + ByteTrack Stable Tracking + Recording", combined)
 
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord("q"):
-            break
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord("q"):
+                break
 
-    cap1.release()
-    cap2.release()
-    cv2.destroyAllWindows()
+    finally:
+        cap1.release()
+        cap2.release()
+        cv2.destroyAllWindows()
+        # 7. 結束 session，寫出 meta.json / windows.jsonl
+        recorder.finalize()
 
 
 if __name__ == "__main__":
