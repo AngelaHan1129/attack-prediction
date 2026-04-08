@@ -14,7 +14,7 @@ dist/
 # 模型權重 (太大)
 backend/static/models/*.pt
 backend/static/models/*.pth
-
+backend/app/weights/yolo26n.pt
 # 資料庫
 *.db
 # venv
