@@ -3,6 +3,8 @@ import NavBar from './components/NavBar'
 import LoginForm from './components/LoginForm'
 import Dashboard from './pages/Dashboard'
 import ProtectedRoute from './components/ProtectedRoute'
+import YoloViewer from './pages/YoloViewer'
+import DualYoloViewer from './pages/DualYoloViewer'
 
 const AppLayout = () => (
   <div className="min-h-screen bg-gradient-to-br from-slate-100 via-white to-lime-100 pb-28">
@@ -16,14 +18,7 @@ function App() {
     <Routes>
       <Route element={<AppLayout />}>
         <Route path="/login" element={<LoginForm />} />
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <LoginForm />
-            </ProtectedRoute>
-          }
-        />
+
         <Route
           path="/dashboard"
           element={
@@ -32,7 +27,27 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route path="*" element={<Navigate to="/" replace />} />
+
+        <Route
+          path="/yolo"
+          element={
+            <ProtectedRoute>
+              <YoloViewer />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/yolo-dual"
+          element={
+            <ProtectedRoute>
+              <DualYoloViewer />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>
     </Routes>
   )

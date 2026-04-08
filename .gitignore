@@ -23,6 +23,21 @@ backend/venv/
 backend/__pycache__/
 backend/*.pyc
 backend/app.db
+
+# FastAPI / backend generated data
+backend/app/data/sessions/
+backend/data/sessions/
+backend/data/snapshots/
+backend/app/data/snapshots/
+backend/data/sessions/**/*.jsonl
+backend/data/sessions/**/*_mask.npy
+backend/data/sessions/**/*meta.json
+backend/app/data/**/*.jpg
+backend/app/data/**/*.jpeg
+backend/app/data/**/*.png
+backend/app/data/**/*.jsonl
+backend/app/data/**/*.npy
+backend/app/data/**/meta.json
 # node
 frontend/node_modules/
 frontend/.nuxt/

@@ -15,6 +15,7 @@ const NavBar: React.FC = () => {
     location.pathname === '/login' ||
     location.pathname === '/register' ||
     location.pathname === '/'
+
   if (shouldHideNav) {
     return null
   }
@@ -25,7 +26,11 @@ const NavBar: React.FC = () => {
   }
 
   const navItems: NavItem[] = isLoggedIn
-    ? [{ to: '/dashboard', label: '主畫面' }]
+    ? [
+        { to: '/dashboard', label: '主畫面' },
+        { to: '/yolo', label: '單鏡頭' },
+        { to: '/yolo-dual', label: '雙鏡頭' }
+      ]
     : [{ to: '/', label: '首頁' }]
 
   return (
@@ -40,16 +45,16 @@ const NavBar: React.FC = () => {
                 <Link
                   key={item.to}
                   to={item.to}
-                  className={`rounded-full px-4 py-2 text-xs font-semibold transition-all duration-300 ${isActive
+                  className={`rounded-full px-4 py-2 text-xs font-semibold transition-all duration-300 ${
+                    isActive
                       ? 'bg-lime-400 text-black shadow-[0_0_16px_rgba(163,230,53,0.35)]'
                       : 'text-slate-700 hover:bg-lime-100 hover:text-slate-900'
-                    }`}
+                  }`}
                 >
                   {item.label}
                 </Link>
               )
             })}
-            
           </div>
 
           <div className="ml-2 shrink-0">
@@ -69,7 +74,6 @@ const NavBar: React.FC = () => {
               </Link>
             )}
           </div>
-          
         </div>
       </nav>
     </div>

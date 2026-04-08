@@ -14,14 +14,6 @@ const riskColors: Record<RiskLevel, string> = {
   L4: 'bg-fuchsia-500',
 }
 
-const riskLabels: Record<RiskLevel, string> = {
-  L0: '正常',
-  L1: '低風險',
-  L2: '中風險',
-  L3: '高風險',
-  L4: '緊急',
-}
-
 type Camera = {
   id: string
   name: string
@@ -203,9 +195,6 @@ const Dashboard: React.FC = () => {
                       <span className="truncate text-[10px] lg:text-[11px] 2xl:text-sm font-bold">
                         {camera.name}
                       </span>
-                      <span className="shrink-0 text-[7px] 2xl:text-[9px] text-white/85">
-                        {riskLabels[camera.risk]}
-                      </span>
                     </div>
 
                   </div>
@@ -226,17 +215,17 @@ const Dashboard: React.FC = () => {
                   {
                     label: 'L3 事件',
                     val: stats.l3Events,
-                    color: 'border-red-500/30 bg-red-500/10 text-red-400',
+                    color: 'border-red-500/30 bg-red-500/30 text-black-400',
                   },
                   {
                     label: 'L4 緊急',
                     val: stats.l4Events,
-                    color: 'border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-400',
+                    color: 'border-fuchsia-500/30 bg-fuchsia-500/30 text-black-400',
                   },
                   {
                     label: '處理率',
                     val: `${stats.handledRate}%`,
-                    color: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400',
+                    color: 'border-emerald-500/30 bg-emerald-500/30 text-black-400',
                   },
                 ].map((s, i) => (
                   <div
