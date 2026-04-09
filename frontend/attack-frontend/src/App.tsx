@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Routes, Route, Outlet, Navigate } from 'react-router-dom'
 import NavBar from './components/NavBar'
 import LoginForm from './components/LoginForm'
@@ -5,6 +6,7 @@ import Dashboard from './pages/Dashboard'
 import ProtectedRoute from './components/ProtectedRoute'
 import YoloViewer from './pages/YoloViewer'
 import DualYoloViewer from './pages/DualYoloViewer'
+import LoadingScreen from './components/LoadingScreen'
 
 const AppLayout = () => (
   <div className="min-h-screen bg-gradient-to-br from-slate-100 via-white to-lime-100 pb-28">
@@ -14,6 +16,20 @@ const AppLayout = () => (
 )
 
 function App() {
+  const [appLoading, setAppLoading] = useState(true)
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAppLoading(false)
+    }, 1200)
+
+    return () => clearTimeout(timer)
+  }, [])
+
+  if (appLoading) {
+    return <LoadingScreen />
+  }
+
   return (
     <Routes>
       <Route element={<AppLayout />}>
