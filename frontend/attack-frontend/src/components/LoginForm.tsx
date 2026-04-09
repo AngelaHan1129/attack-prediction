@@ -159,9 +159,17 @@ const LoginForm: React.FC = () => {
           <form className="w-full space-y-3 md:space-y-4" onSubmit={handleSubmit}>
             {!isLogin && (
               <div className="space-y-1">
-                <label className="block px-2 text-[10px] font-semibold text-black/75 md:text-sm">顯示名稱</label>
+                <label
+                  htmlFor="displayName"
+                  className="block px-2 text-[10px] font-semibold text-black/75 md:text-sm"
+                >
+                  顯示名稱
+                </label>
                 <input
+                  id="displayName"
+                  name="displayName"
                   type="text"
+                  autoComplete="name"
                   className="w-full rounded-full border border-black/10 bg-white/20 px-4 py-2 text-xs text-black placeholder-black/30 shadow-inner transition-all focus:border-lime-500/50 focus:outline-none focus:ring-4 focus:ring-lime-500/10 md:px-5 md:py-2.5 md:text-sm"
                   placeholder="你的名字"
                 />
@@ -169,10 +177,17 @@ const LoginForm: React.FC = () => {
             )}
 
             <div className="space-y-1">
-              <label className="block px-2 text-[10px] font-semibold text-black/75 md:text-sm">電子郵件</label>
+              <label
+                htmlFor="username"
+                className="block px-2 text-[10px] font-semibold text-black/75 md:text-sm"
+              >
+                電子郵件
+              </label>
               <input
+                id="username"
+                name="username"
                 type="email"
-                autoComplete="email"
+                autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full rounded-full border border-black/10 bg-white/70 px-4 py-2 text-xs text-black placeholder-black/30 shadow-inner transition-all focus:border-lime-500/50 focus:outline-none focus:ring-4 focus:ring-lime-500/10 md:px-5 md:py-2.5 md:text-sm"
@@ -182,10 +197,17 @@ const LoginForm: React.FC = () => {
             </div>
 
             <div className="space-y-1">
-              <label className="block px-2 text-[10px] font-semibold text-black/75 md:text-sm">密碼</label>
+              <label
+                htmlFor="password"
+                className="block px-2 text-[10px] font-semibold text-black/75 md:text-sm"
+              >
+                密碼
+              </label>
               <input
+                id="password"
+                name="password"
                 type="password"
-                autoComplete="current-password"
+                autoComplete={isLogin ? 'current-password' : 'new-password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full rounded-full border border-black/10 bg-white/70 px-4 py-2 text-xs text-black placeholder-black/30 shadow-inner transition-all focus:border-lime-500/50 focus:outline-none focus:ring-4 focus:ring-lime-500/10 md:px-5 md:py-2.5 md:text-sm"

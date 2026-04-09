@@ -4,7 +4,6 @@ import NavBar from './components/NavBar'
 import LoginForm from './components/LoginForm'
 import Dashboard from './pages/Dashboard'
 import ProtectedRoute from './components/ProtectedRoute'
-import YoloViewer from './pages/YoloViewer'
 import DualYoloViewer from './pages/DualYoloViewer'
 import LoadingScreen from './components/LoadingScreen'
 
@@ -40,15 +39,6 @@ function App() {
           element={
             <ProtectedRoute>
               <Dashboard />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/yolo"
-          element={
-            <ProtectedRoute>
-              <YoloViewer />
             </ProtectedRoute>
           }
         />
