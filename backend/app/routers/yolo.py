@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
 
 from app.core.dependencies import require_admin
-from app.core.cv.pipelines.detect import run_detection, run_detection_dual, stop_events
+from app.core.cv.pipelines.detect import run_detection, stop_events
+from app.core.cv.pipelines.dual_reid import run_detection_dual_reid
 
 
 router = APIRouter(prefix="/yolo", tags=["YOLO Analysis"])
@@ -72,7 +73,7 @@ async def start_yolo_dual(
     stop_events[task_id] = False
 
     background_tasks.add_task(
-        run_detection_dual,
+        run_detection_dual_reid,
         source0=source0,
         source1=source1,
         conf=0.5,
@@ -81,7 +82,7 @@ async def start_yolo_dual(
 
     return {
         "status": "success",
-        "message": "YOLO 雙鏡頭任務已啟動",
+        "message": "YOLO 雙鏡頭 ReID 任務已啟動",
         "task_id": task_id,
         "source0": source0,
         "source1": source1,
