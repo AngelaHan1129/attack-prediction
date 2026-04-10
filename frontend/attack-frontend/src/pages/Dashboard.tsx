@@ -1,10 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Video, Clock, Bell, Play, X } from 'lucide-react'
+import { Video, Clock, Bell, X } from 'lucide-react'
+import YoloViewer from '../components/YoloViewer'
+import DualCameraViewer from '../components/DualCameraViewer'
 
 import dashboardBg from '../assets/hlogo_al.png'
 import workspaceOverlay from '../assets/work-space.svg'
 
 type RiskLevel = 'L0' | 'L1' | 'L2' | 'L3' | 'L4'
+type ViewMode = 'single' | 'dual' | 'twelve'
 
 const riskColors: Record<RiskLevel, string> = {
   L0: 'bg-emerald-400',
@@ -39,6 +42,9 @@ const glassInner =
 
 const Dashboard: React.FC = () => {
   const [currentVenue, setCurrentVenue] = useState<string>(venues[0])
+  const [viewMode, setViewMode] = useState<ViewMode>('twelve')
+  const [isMonitoring, setIsMonitoring] = useState<boolean>(false)
+  const [selectedCamera, setSelectedCamera] = useState<string>('0')
 
   const [cameras] = useState<Camera[]>(() =>
     Array.from({ length: 12 }, (_, i) => ({
@@ -68,6 +74,8 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     const interval = setInterval(() => {
+      if (!isMonitoring) return
+
       const now = new Date()
       const newAlert: Alert = {
         id: `alert-${Date.now()}`,
@@ -80,12 +88,12 @@ const Dashboard: React.FC = () => {
       setAlerts((prev) => [newAlert, ...prev.slice(0, 9)])
 
       if (audioRef.current) {
-        audioRef.current.play().catch(() => { })
+        audioRef.current.play().catch(() => {})
       }
     }, 30000)
 
     return () => clearInterval(interval)
-  }, [])
+  }, [isMonitoring])
 
   const clearAlert = (id: string): void => {
     setAlerts((prev) => prev.filter((a) => a.id !== id))
@@ -95,9 +103,16 @@ const Dashboard: React.FC = () => {
     setCurrentVenue(venue)
   }
 
+  const handleStartMonitoring = (): void => {
+    setIsMonitoring(true)
+  }
+
+  const handleStopMonitoring = (): void => {
+    setIsMonitoring(false)
+  }
+
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-slate-950 text-black">
-      {/* 背景層 */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         <img
           src={workspaceOverlay}
@@ -111,102 +126,183 @@ const Dashboard: React.FC = () => {
         />
       </div>
 
-      {/* 主內容；pb-24 是預留給底部 fixed nav 的安全空間 */}
       <div className="relative z-10 grid h-full min-h-0 grid-rows-[auto,minmax(0,1fr)] gap-2 p-2 pb-24 lg:gap-2.5 lg:p-2.5 lg:pb-24 2xl:gap-4 2xl:p-4 2xl:pb-4">
-        {/* 頂部 */}
         <div className={`${glassCard} min-h-0 px-2.5 py-1.5 2xl:px-4 2xl:py-2.5`}>
-          <div className="flex items-center justify-between gap-2 lg:gap-3">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 items-center gap-2.5">
-              <div className="flex h-7 w-7 lg:h-8 lg:w-8 2xl:h-9 2xl:w-9 shrink-0 items-center justify-center rounded-lg border border-white/20 bg-white/10 shadow-lg backdrop-blur-md">
-                <Clock className="h-3.5 w-3.5 2xl:h-4.5 2xl:w-4.5 text-white/80" />
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/20 bg-white/10 shadow-lg backdrop-blur-md lg:h-8 lg:w-8 2xl:h-9 2xl:w-9">
+                <Clock className="h-3.5 w-3.5 text-white/80 2xl:h-4.5 2xl:w-4.5" />
               </div>
 
               <div className="min-w-0">
-                <p className="text-[7px] lg:text-[8px] font-semibold uppercase tracking-[0.18em] lg:tracking-[0.22em] text-white/38">
+                <p className="text-[7px] font-semibold uppercase tracking-[0.18em] text-white/38 lg:text-[8px] lg:tracking-[0.22em]">
                   Surveillance Security Platform
                 </p>
-                <p className="truncate text-xs lg:text-sm xl:text-base 2xl:text-lg font-extrabold tracking-normal text-white">
+                <p className="truncate text-xs font-extrabold tracking-normal text-white lg:text-sm xl:text-base 2xl:text-lg">
                   {currentTime.toLocaleString('zh-TW', { hour12: false })}
                 </p>
               </div>
 
               <div
-                className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] 2xl:px-3 2xl:text-[10px] font-black shadow-lg ${systemStatus === '正常'
-                  ? 'bg-emerald-400 text-emerald-950'
-                  : 'bg-red-500 text-white'
-                  }`}
+                className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-black shadow-lg 2xl:px-3 2xl:text-[10px] ${
+                  systemStatus === '正常'
+                    ? 'bg-emerald-400 text-emerald-950'
+                    : 'bg-red-500 text-white'
+                }`}
               >
                 系統{systemStatus}
               </div>
             </div>
 
-            <select
-              value={currentVenue}
-              onChange={(e) => handleVenueChange(e.target.value)}
-              className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 lg:px-3 lg:py-2 text-[11px] lg:text-xs font-bold text-white outline-none backdrop-blur-xl transition-all hover:bg-white/10 focus:ring-2 focus:ring-emerald-400/50"
-            >
-              {venues.map((v) => (
-                <option key={v} value={v} className="bg-slate-900">
-                  {v}
-                </option>
-              ))}
-            </select>
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={currentVenue}
+                onChange={(e) => handleVenueChange(e.target.value)}
+                className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] font-bold text-white outline-none backdrop-blur-xl transition-all hover:bg-white/10 focus:ring-2 focus:ring-emerald-400/50 lg:px-3 lg:py-2 lg:text-xs"
+              >
+                {venues.map((v) => (
+                  <option key={v} value={v} className="bg-slate-900">
+                    {v}
+                  </option>
+                ))}
+              </select>
+
+              {viewMode === 'single' && (
+                <select
+                  value={selectedCamera}
+                  onChange={(e) => setSelectedCamera(e.target.value)}
+                  className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] font-bold text-white outline-none backdrop-blur-xl transition-all hover:bg-white/10 focus:ring-2 focus:ring-emerald-400/50 lg:px-3 lg:py-2 lg:text-xs"
+                >
+                  {cameras.map((camera, index) => (
+                    <option key={camera.id} value={String(index)} className="bg-slate-900">
+                      {camera.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              <button
+                onClick={() => setViewMode('single')}
+                className={`rounded-lg px-3 py-2 text-xs font-bold transition ${
+                  viewMode === 'single'
+                    ? 'bg-emerald-400 text-emerald-950'
+                    : 'bg-white/10 text-white hover:bg-white/20'
+                }`}
+              >
+                單鏡頭
+              </button>
+
+              <button
+                onClick={() => setViewMode('dual')}
+                className={`rounded-lg px-3 py-2 text-xs font-bold transition ${
+                  viewMode === 'dual'
+                    ? 'bg-emerald-400 text-emerald-950'
+                    : 'bg-white/10 text-white hover:bg-white/20'
+                }`}
+              >
+                雙鏡頭
+              </button>
+
+              <button
+                onClick={() => setViewMode('twelve')}
+                className={`rounded-lg px-3 py-2 text-xs font-bold transition ${
+                  viewMode === 'twelve'
+                    ? 'bg-emerald-400 text-emerald-950'
+                    : 'bg-white/10 text-white hover:bg-white/20'
+                }`}
+              >
+                12鏡頭
+              </button>
+
+              <button
+                onClick={handleStartMonitoring}
+                disabled={isMonitoring}
+                className="rounded-lg bg-lime-400 px-3 py-2 text-xs font-bold text-black transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                開始監測
+              </button>
+
+              <button
+                onClick={handleStopMonitoring}
+                disabled={!isMonitoring}
+                className="rounded-lg bg-red-500 px-3 py-2 text-xs font-bold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                停止監測
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* 內容區 */}
         <div className="grid min-h-0 grid-cols-1 gap-2 lg:grid-cols-[minmax(0,3.7fr)_220px] 2xl:grid-cols-[minmax(0,3.35fr)_minmax(260px,0.95fr)] 2xl:gap-4">
-          {/* 左側監控矩陣 */}
           <div className={`${glassCard} flex min-h-0 flex-col p-2 lg:p-2 2xl:p-4`}>
-            <div className="mb-2.5 2xl:mb-4 flex shrink-0 items-center justify-between">
-              <h2 className="flex items-center gap-2 text-sm xl:text-base 2xl:text-xl font-black text-white">
-                <div className="flex h-5 w-7 2xl:h-9 2xl:w-9 items-center justify-center rounded-lg bg-emerald-400/20 text-emerald-400">
+            <div className="mb-2.5 flex shrink-0 items-center justify-between">
+              <h2 className="flex items-center gap-2 text-sm font-black text-white xl:text-base 2xl:text-xl">
+                <div className="flex h-5 w-7 items-center justify-center rounded-lg bg-emerald-400/20 text-emerald-400 2xl:h-9 2xl:w-9">
                   <Video className="h-3.5 w-3.5 2xl:h-5 2xl:w-5" />
                 </div>
-                即時監控矩陣
+                {viewMode === 'single'
+                  ? '單鏡頭監控'
+                  : viewMode === 'dual'
+                  ? '雙鏡頭監控'
+                  : '即時監控矩陣'}
               </h2>
 
-              <div className="rounded-lg bg-emerald-400 px-2 py-1 text-[8px] 2xl:px-3 2xl:py-1.5 2xl:text-[10px] font-black text-emerald-950 shadow-lg shadow-emerald-400/20">
-                LIVE: {cameras.length} UNITS
+              <div className="rounded-lg bg-emerald-400 px-2 py-1 text-[8px] font-black text-emerald-950 shadow-lg shadow-emerald-400/20 2xl:px-3 2xl:py-1.5 2xl:text-[10px]">
+                {isMonitoring ? 'MONITORING' : 'IDLE'}
               </div>
             </div>
 
             <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto pr-1">
-              <div className="grid grid-cols-4 gap-2 2xl:gap-3">
-                {cameras.map((camera) => (
-                  <div
-                    key={camera.id}
-                    className={`${glassInner} group relative overflow-hidden p-2 2xl:p-3 transition-all duration-300 hover:scale-[1.01] hover:bg-white/20`}
-                  >
-                    <div className="relative mb-1.5 aspect-[16/8.2] overflow-hidden rounded-md 2xl:rounded-lg bg-slate-900 shadow-inner">
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                      <div className="flex h-full items-center justify-center">
-                        <Play className="h-4 w-4 2xl:h-6 2xl:w-6 text-black/20 transition-all group-hover:scale-110 group-hover:text-white/60" />
+              {viewMode === 'single' && (
+                <YoloViewer
+                  isMonitoring={isMonitoring}
+                  source={selectedCamera}
+                />
+              )}
+
+              {viewMode === 'dual' && (
+                <DualCameraViewer
+                  isMonitoring={isMonitoring}
+                  source0="0"
+                  source1="1"
+                />
+              )}
+
+              {viewMode === 'twelve' && (
+                <div className="grid grid-cols-2 gap-2 lg:grid-cols-3 2xl:grid-cols-4 2xl:gap-3">
+                  {cameras.map((camera) => (
+                    <div
+                      key={camera.id}
+                      className={`${glassInner} group relative overflow-hidden p-2 2xl:p-3 transition-all duration-300 hover:scale-[1.01] hover:bg-white/20`}
+                    >
+                      <div className="relative mb-1.5 aspect-[16/9] overflow-hidden rounded-md bg-slate-900 shadow-inner 2xl:rounded-lg">
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                        <div className="flex h-full items-center justify-center text-xs font-bold text-white/60 2xl:text-sm">
+                          {isMonitoring ? '監測中' : '未啟動'}
+                        </div>
+                      </div>
+
+                      <div
+                        className={`absolute right-2.5 top-2.5 flex h-6 w-6 items-center justify-center rounded-full text-[7px] font-black text-white shadow-xl 2xl:h-8 2xl:w-8 2xl:text-[9px] ${riskColors[camera.risk]}`}
+                      >
+                        {camera.risk}
+                      </div>
+
+                      <div className="mt-1 flex items-center gap-1.5 text-white">
+                        <span className="truncate text-[10px] font-bold lg:text-[11px] 2xl:text-sm">
+                          {camera.name}
+                        </span>
                       </div>
                     </div>
-
-                    <div
-                      className={`absolute right-2.5 top-2.5 flex h-6 w-6 2xl:h-8 2xl:w-8 items-center justify-center rounded-full text-[7px] 2xl:text-[9px] font-black text-white shadow-xl ${riskColors[camera.risk]}`}
-                    >
-                      {camera.risk}
-                    </div>
-
-                    <div className="mt-1 flex items-center gap-1.5 text-black/80">
-                      <span className="truncate text-[10px] lg:text-[11px] 2xl:text-sm font-bold">
-                        {camera.name}
-                      </span>
-                    </div>
-
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* 右側統計與告警 */}
           <div className="flex min-h-0 flex-col gap-2.5 2xl:gap-4">
             <div className={`${glassCard} p-2.5 2xl:p-4`}>
-              <h3 className="mb-2.5 2xl:mb-4 text-[11px] xl:text-xs 2xl:text-base font-black text-white/80">
+              <h3 className="mb-2.5 text-[11px] font-black text-white/80 xl:text-xs 2xl:mb-4 2xl:text-base">
                 數據概況
               </h3>
 
@@ -232,22 +328,22 @@ const Dashboard: React.FC = () => {
                     key={i}
                     className={`flex items-center justify-between rounded-lg border p-2 ${s.color}`}
                   >
-                    <span className="text-[9px] 2xl:text-[11px] font-bold opacity-70">{s.label}</span>
-                    <span className="text-sm xl:text-base 2xl:text-xl font-black">{s.val}</span>
+                    <span className="text-[9px] font-bold opacity-70 2xl:text-[11px]">{s.label}</span>
+                    <span className="text-sm font-black xl:text-base 2xl:text-xl">{s.val}</span>
                   </div>
                 ))}
               </div>
             </div>
 
             <div className={`${glassCard} flex min-h-0 flex-1 flex-col p-2.5 2xl:p-4`}>
-              <h3 className="mb-2.5 2xl:mb-4 flex items-center gap-1.5 text-[11px] xl:text-xs 2xl:text-base font-black text-white/80">
-                <Bell className="h-3 w-3 2xl:h-4 2xl:w-4 animate-pulse text-red-500" />
+              <h3 className="mb-2.5 flex items-center gap-1.5 text-[11px] font-black text-white/80 xl:text-xs 2xl:mb-4 2xl:text-base">
+                <Bell className="h-3 w-3 animate-pulse text-red-500 2xl:h-4 2xl:w-4" />
                 即時告警
               </h3>
 
               <div className="custom-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                 {alerts.length === 0 ? (
-                  <div className="rounded-lg border border-white/10 bg-white/5 p-2 text-[10px] 2xl:text-xs text-white/45">
+                  <div className="rounded-lg border border-white/10 bg-white/5 p-2 text-[10px] text-white/45 2xl:text-xs">
                     目前尚無即時告警
                   </div>
                 ) : (
@@ -258,7 +354,7 @@ const Dashboard: React.FC = () => {
                     >
                       <div className="mb-1 flex items-center justify-between">
                         <span
-                          className={`rounded px-1.5 py-0.5 text-[7px] 2xl:text-[9px] font-black text-white ${riskColors[alert.level]}`}
+                          className={`rounded px-1.5 py-0.5 text-[7px] font-black text-white 2xl:text-[9px] ${riskColors[alert.level]}`}
                         >
                           {alert.level}
                         </span>
@@ -270,10 +366,10 @@ const Dashboard: React.FC = () => {
                         />
                       </div>
 
-                      <div className="text-[10px] lg:text-[11px] 2xl:text-sm font-bold text-white">
+                      <div className="text-[10px] font-bold text-white lg:text-[11px] 2xl:text-sm">
                         {alert.camera}
                       </div>
-                      <div className="text-[7px] 2xl:text-[9px] text-white/40">
+                      <div className="text-[7px] text-white/40 2xl:text-[9px]">
                         {alert.time} - {alert.description}
                       </div>
                     </div>

@@ -1,6 +1,4 @@
 import { useState } from "react";
-import YoloViewer from "../components/YoloViewer";
-import DualCameraViewer from "../components/DualCameraViewer";
 
 
 import dashboardBg from '../assets/hlogo_al.png'
@@ -65,7 +63,7 @@ export default function DualYoloViewer() {
       </div>
 
       <div className="rounded-3xl">
-        {mode === "single" ? <YoloViewer /> : <DualCameraViewer />}
+        {/* {mode === "single" ? <YoloViewer /> : <DualCameraViewer />} */}
       </div>
     </div>
   );
