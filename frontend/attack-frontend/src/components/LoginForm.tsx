@@ -29,10 +29,12 @@ const LoginForm: React.FC = () => {
     try {
       if (isLogin) {
         await login(email, password);
+        navigate('/dashboard');
       } else {
         await register(email, password);
+        setError('註冊成功，請到後端 console 複製驗證連結完成驗證後再登入。');
+        setIsLogin(true);
       }
-      navigate('/dashboard');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : '發生錯誤');
     } finally {

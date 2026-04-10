@@ -1,5 +1,3 @@
-# backend/app/core/cv/pipelines/dual_reid.py
-import os
 import time
 from pathlib import Path
 from collections import deque
@@ -15,11 +13,18 @@ from ultralytics import YOLO
 
 from app.core.cv.pipelines.detect import stop_events
 
-BASE_DIR = Path(__file__).resolve().parents[4]
+
+BASE_DIR = Path(__file__).resolve().parents[4]   # backend/
 SNAPSHOT_DIR = BASE_DIR / "data" / "snapshots"
 SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
 
-MODEL_PATH = BASE_DIR / "app" / "weights" / "yolo26n.pt"
+MODEL_PATH = BASE_DIR / "weights" / "yolo26n.pt"
+POSE_TASK_PATH = BASE_DIR / "weights" / "pose_landmarker_lite.task"
+TRACKER_PATH = BASE_DIR / "app" / "scripts" / "custom_tracker.yaml"
+
+CONF = 0.45
+IMG_SIZE = 640
+MAX_GALLERY_PER_PERSON = 8
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -43,15 +48,31 @@ PoseLandmarker = mp.tasks.vision.PoseLandmarker
 PoseLandmarkerOptions = mp.tasks.vision.PoseLandmarkerOptions
 VisionRunningMode = mp.tasks.vision.RunningMode
 
-options = PoseLandmarkerOptions(
-    base_options=BaseOptions(model_asset_path=str(BASE_DIR / "app" / "pose_landmarker_lite.task")),
-    running_mode=VisionRunningMode.IMAGE
-)
-pose_estimator = PoseLandmarker.create_from_options(options)
-
+pose_estimator = None
 person_db = {}
 track_to_person = {}
 next_person_id = 1
+
+
+def now_ts():
+    return time.time()
+
+
+def get_pose_estimator():
+    global pose_estimator
+
+    if pose_estimator is None:
+        if not POSE_TASK_PATH.exists():
+            raise FileNotFoundError(f"找不到 MediaPipe task 檔案: {POSE_TASK_PATH}")
+
+        options = PoseLandmarkerOptions(
+            base_options=BaseOptions(model_asset_path=str(POSE_TASK_PATH)),
+            running_mode=VisionRunningMode.IMAGE
+        )
+        pose_estimator = PoseLandmarker.create_from_options(options)
+
+    return pose_estimator
+
 
 def open_camera(source):
     source = int(source) if str(source).isdigit() else source
@@ -60,15 +81,11 @@ def open_camera(source):
         return None
     return cap
 
+
 def save_snapshot(task_id: str, cam: str, frame):
     path = SNAPSHOT_DIR / f"{task_id}_{cam}_latest.jpg"
     cv2.imwrite(str(path), frame)
-CONF = 0.45
-IMG_SIZE = 640
-MAX_GALLERY_PER_PERSON = 8
 
-def now_ts():
-    return time.time()
 
 def l2_normalize(vec, eps=1e-12):
     norm = np.linalg.norm(vec)
@@ -76,10 +93,12 @@ def l2_normalize(vec, eps=1e-12):
         return vec
     return vec / norm
 
+
 def cosine_similarity(a, b):
     a = l2_normalize(a)
     b = l2_normalize(b)
     return float(np.dot(a, b))
+
 
 def safe_crop(frame, box):
     h, w = frame.shape[:2]
@@ -92,6 +111,7 @@ def safe_crop(frame, box):
         return None
     crop = frame[y1:y2, x1:x2]
     return crop if crop.size > 0 else None
+
 
 def extract_deep_embedding(person_crop):
     if person_crop is None or person_crop.size == 0:
@@ -109,13 +129,20 @@ def extract_deep_embedding(person_crop):
 
     return l2_normalize(emb)
 
+
 def extract_mediapipe_pose(person_crop):
     if person_crop is None or person_crop.size == 0:
         return None
 
+    try:
+        estimator = get_pose_estimator()
+    except Exception as e:
+        print(f"[WARN] PoseLandmarker 初始化失敗: {e}")
+        return None
+
     image_rgb = cv2.cvtColor(person_crop, cv2.COLOR_BGR2RGB)
     mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image_rgb)
-    detection_result = pose_estimator.detect(mp_image)
+    detection_result = estimator.detect(mp_image)
 
     if not detection_result.pose_landmarks:
         return None
@@ -125,6 +152,7 @@ def extract_mediapipe_pose(person_crop):
         landmarks.append([lm.x, lm.y, lm.z])
 
     return landmarks
+
 
 def create_new_person(emb, camera_name):
     global next_person_id
@@ -140,6 +168,7 @@ def create_new_person(emb, camera_name):
     }
     return pid
 
+
 def resolve_person_id(camera_name, track_id, emb):
     key = (camera_name, int(track_id))
 
@@ -150,9 +179,11 @@ def resolve_person_id(camera_name, track_id, emb):
     track_to_person[key] = pid
     return pid, "new"
 
+
 def update_person_sequence(person_id, landmarks):
     info = person_db[person_id]
     info["skeleton_sequence"].append(landmarks)
+
 
 def draw_person(frame, box, person_id, track_id, note, color=(0, 255, 0)):
     x1, y1, x2, y2 = box
@@ -176,14 +207,17 @@ def draw_person(frame, box, person_id, track_id, note, color=(0, 255, 0)):
         2,
     )
 
+
 def process_camera_frame(model, frame, camera_name):
+    tracker_arg = str(TRACKER_PATH) if TRACKER_PATH.exists() else "bytetrack.yaml"
+
     results = model.track(
         frame,
         classes=[0],
         conf=CONF,
         imgsz=IMG_SIZE,
         persist=True,
-        tracker="bytetrack.yaml",
+        tracker=tracker_arg,
         verbose=False
     )
 
@@ -220,7 +254,15 @@ def process_camera_frame(model, frame, camera_name):
         draw_person(vis, box, person_id, track_id, f"{note} c:{conf:.2f}")
 
     return vis
+
+
 def run_detection_dual_reid(source0="0", source1="1", conf=0.5, task_id="default"):
+    global CONF
+    CONF = conf
+
+    if not MODEL_PATH.exists():
+        raise FileNotFoundError(f"找不到 YOLO 權重檔: {MODEL_PATH}")
+
     model = YOLO(str(MODEL_PATH))
 
     cap0 = open_camera(source0)
@@ -250,4 +292,3 @@ def run_detection_dual_reid(source0="0", source1="1", conf=0.5, task_id="default
         cap0.release()
         cap1.release()
         stop_events.pop(task_id, None)
-        

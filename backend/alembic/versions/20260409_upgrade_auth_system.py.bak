@@ -1,0 +1,81 @@
+from alembic import op
+import sqlalchemy as sa
+
+revision = "20260409_upgrade_auth_system"
+down_revision = None
+branch_labels = None
+depends_on = None
+
+
+def upgrade():
+    with op.batch_alter_table("users") as batch_op:
+        batch_op.add_column(sa.Column("username", sa.String(length=50), nullable=True))
+        batch_op.add_column(sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()))
+        batch_op.add_column(sa.Column("is_admin", sa.Boolean(), nullable=False, server_default=sa.false()))
+        batch_op.add_column(sa.Column("email_verified", sa.Boolean(), nullable=False, server_default=sa.false()))
+        batch_op.add_column(sa.Column("verification_token", sa.String(length=255), nullable=True))
+        batch_op.add_column(sa.Column("refresh_token", sa.String(length=255), nullable=True))
+        batch_op.add_column(sa.Column("failed_login_count", sa.Integer(), nullable=False, server_default="0"))
+        batch_op.add_column(sa.Column("last_login_at", sa.DateTime(timezone=True), nullable=True))
+        batch_op.add_column(sa.Column("created_at", sa.DateTime(timezone=True), nullable=True))
+        batch_op.add_column(sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True))
+
+    conn = op.get_bind()
+
+    conn.execute(sa.text("""
+        UPDATE users
+        SET username = substr(email, 1, instr(email, '@') - 1)
+        WHERE username IS NULL
+    """))
+
+    conn.execute(sa.text("""
+        UPDATE users
+        SET is_admin = CASE WHEN roles = 'admin' THEN 1 ELSE 0 END
+    """))
+
+    conn.execute(sa.text("""
+        UPDATE users
+        SET is_active = 1,
+            email_verified = 1,
+            failed_login_count = 0,
+            created_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+    """))
+
+    with op.batch_alter_table("users") as batch_op:
+        batch_op.alter_column("username", existing_type=sa.String(length=50), nullable=False)
+        batch_op.create_unique_constraint("uq_users_username", ["username"])
+        batch_op.create_unique_constraint("uq_users_email", ["email"])
+        batch_op.create_index("ix_users_username", ["username"], unique=True)
+        batch_op.create_index("ix_users_verification_token", ["verification_token"], unique=False)
+
+    with op.batch_alter_table("users") as batch_op:
+        batch_op.drop_column("roles")
+
+
+def downgrade():
+    with op.batch_alter_table("users") as batch_op:
+        batch_op.add_column(sa.Column("roles", sa.String(), nullable=True))
+
+    conn = op.get_bind()
+    conn.execute(sa.text("""
+        UPDATE users
+        SET roles = CASE WHEN is_admin = 1 THEN 'admin' ELSE 'user' END
+    """))
+
+    with op.batch_alter_table("users") as batch_op:
+        batch_op.drop_index("ix_users_verification_token")
+        batch_op.drop_index("ix_users_username")
+        batch_op.drop_constraint("uq_users_username", type_="unique")
+        batch_op.drop_constraint("uq_users_email", type_="unique")
+
+        batch_op.drop_column("username")
+        batch_op.drop_column("is_active")
+        batch_op.drop_column("is_admin")
+        batch_op.drop_column("email_verified")
+        batch_op.drop_column("verification_token")
+        batch_op.drop_column("refresh_token")
+        batch_op.drop_column("failed_login_count")
+        batch_op.drop_column("last_login_at")
+        batch_op.drop_column("created_at")
+        batch_op.drop_column("updated_at")

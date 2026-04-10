@@ -31,10 +31,10 @@ export default function DualYoloViewer() {
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              YOLO 監看模式切換
+              鏡頭模式切換
             </h1>
             <p className="mt-2 text-sm text-slate-600">
-              可在單鏡頭與雙鏡頭模式之間切換，依需求選擇監看方式。
+              可在單鏡頭與雙鏡頭模式之間切換，依需求選擇鏡頭方式。
             </p>
           </div>
 

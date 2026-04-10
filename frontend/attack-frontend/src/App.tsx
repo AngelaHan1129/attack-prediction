@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard'
 import ProtectedRoute from './components/ProtectedRoute'
 import DualYoloViewer from './pages/DualYoloViewer'
 import LoadingScreen from './components/LoadingScreen'
+import VerifyEmailPage from './pages/VerifyEmailPage'
 
 const AppLayout = () => (
   <div className="min-h-screen bg-gradient-to-br from-slate-100 via-white to-lime-100 pb-28">
@@ -33,6 +34,7 @@ function App() {
     <Routes>
       <Route element={<AppLayout />}>
         <Route path="/login" element={<LoginForm />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
 
         <Route
           path="/dashboard"

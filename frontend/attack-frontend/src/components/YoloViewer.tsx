@@ -133,7 +133,7 @@ export default function YoloViewer() {
       <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white/80 shadow-2xl shadow-slate-200/70 backdrop-blur-xl">
         <div className="flex items-center justify-between border-b border-slate-200/80 px-5 py-4">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">即時監看畫面</h2>
+            <h2 className="text-lg font-semibold text-slate-900">即時鏡頭畫面</h2>
             <p className="mt-1 text-sm text-slate-500">
               解析度依後端 snapshot 更新頻率顯示
             </p>

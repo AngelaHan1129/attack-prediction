@@ -11,10 +11,12 @@ export async function loginApi(email: string, password: string): Promise<TokenRe
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ username: email, password }).toString(),
   });
+
   if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.detail ?? "登入失敗");
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.detail ?? "登入失敗");
   }
+
   return res.json();
 }
 
@@ -24,9 +26,26 @@ export async function registerApi(email: string, password: string) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
+
   if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.detail ?? "註冊失敗");
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.detail ?? "註冊失敗");
   }
+
+  return res.json();
+}
+
+export async function verifyEmailApi(token: string) {
+  const res = await fetch(`${BASE_URL}/auth/verify-email`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.detail ?? "Email 驗證失敗");
+  }
+
   return res.json();
 }

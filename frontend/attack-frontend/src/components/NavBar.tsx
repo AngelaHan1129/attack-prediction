@@ -28,7 +28,7 @@ const NavBar: React.FC = () => {
   const navItems: NavItem[] = isLoggedIn
     ? [
         { to: '/dashboard', label: '主畫面' },
-        { to: '/yolo-dual', label: 'YOLO 監看' }
+        { to: '/yolo-dual', label: '鏡頭' }
       ]
     : [{ to: '/', label: '首頁' }]
 

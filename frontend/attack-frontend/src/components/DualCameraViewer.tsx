@@ -109,7 +109,7 @@ const DualCameraViewer = () => {
               雙鏡頭 YOLO 即時畫面
             </h1>
             <p className="mt-2 text-sm text-slate-600">
-              可同步監看 cam0 與 cam1，並持續更新後端偵測結果。
+              可同步鏡頭 cam0 與 cam1，並持續更新後端偵測結果。
             </p>
           </div>
 
