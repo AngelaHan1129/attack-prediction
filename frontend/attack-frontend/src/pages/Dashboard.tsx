@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Video, Clock, Bell, X } from 'lucide-react'
 import YoloViewer from '../components/YoloViewer'
 import DualCameraViewer from '../components/DualCameraViewer'
+import MultiCameraViewer from '../components/MultiCameraViewer'
 
 import dashboardBg from '../assets/hlogo_al.png'
 import workspaceOverlay from '../assets/work-space.svg'
@@ -37,8 +38,8 @@ const venues: string[] = ['車站A', '車站B', '車站C', '商圈']
 const glassCard =
   'relative rounded-[16px] 2xl:rounded-[18px] border border-white/20 bg-black/20 backdrop-blur-2xl backdrop-saturate-140 backdrop-brightness-110 shadow-[0_12px_28px_rgba(0,0,0,0.16),inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-10px_16px_rgba(255,255,255,0.04)] ring-1 ring-white/10'
 
-const glassInner =
-  'rounded-[14px] 2xl:rounded-[16px] border border-white/15 bg-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_6px_16px_rgba(0,0,0,0.10)]'
+const controlButton =
+  'rounded-lg px-3 py-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-50'
 
 const Dashboard: React.FC = () => {
   const [currentVenue, setCurrentVenue] = useState<string>(venues[0])
@@ -53,7 +54,7 @@ const Dashboard: React.FC = () => {
       risk: (
         ['L0', 'L1', 'L0', 'L2', 'L0', 'L3', 'L1', 'L0', 'L4', 'L0', 'L2', 'L0'] as RiskLevel[]
       )[i],
-      streamUrl: `https://example.com/stream/cam-${i + 1}.m3u8`,
+      streamUrl: `cam${i}`,
     }))
   )
 
@@ -66,6 +67,8 @@ const Dashboard: React.FC = () => {
   const [currentTime, setCurrentTime] = useState<Date>(new Date())
   const [systemStatus] = useState<'正常' | '警告' | '故障'>('正常')
   const audioRef = useRef<HTMLAudioElement>(null)
+
+  const twelveSources = Array.from({ length: 12 }, (_, i) => String(i))
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
@@ -111,6 +114,13 @@ const Dashboard: React.FC = () => {
     setIsMonitoring(false)
   }
 
+  const modeButton = (active: boolean) =>
+    `${controlButton} ${
+      active
+        ? 'bg-emerald-400 text-emerald-950'
+        : 'bg-white/10 text-white hover:bg-white/20'
+    }`
+
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-slate-950 text-black">
       <div className="absolute inset-0 z-0 overflow-hidden">
@@ -138,7 +148,7 @@ const Dashboard: React.FC = () => {
                 <p className="text-[7px] font-semibold uppercase tracking-[0.18em] text-white/38 lg:text-[8px] lg:tracking-[0.22em]">
                   Surveillance Security Platform
                 </p>
-                <p className="truncate text-xs font-extrabold tracking-normal text-white lg:text-sm xl:text-base 2xl:text-lg">
+                <p className="truncate text-xs font-extrabold tracking-normal text-white tabular-nums lg:text-sm xl:text-base 2xl:text-lg">
                   {currentTime.toLocaleString('zh-TW', { hour12: false })}
                 </p>
               </div>
@@ -181,43 +191,22 @@ const Dashboard: React.FC = () => {
                 </select>
               )}
 
-              <button
-                onClick={() => setViewMode('single')}
-                className={`rounded-lg px-3 py-2 text-xs font-bold transition ${
-                  viewMode === 'single'
-                    ? 'bg-emerald-400 text-emerald-950'
-                    : 'bg-white/10 text-white hover:bg-white/20'
-                }`}
-              >
+              <button onClick={() => setViewMode('single')} className={modeButton(viewMode === 'single')}>
                 單鏡頭
               </button>
 
-              <button
-                onClick={() => setViewMode('dual')}
-                className={`rounded-lg px-3 py-2 text-xs font-bold transition ${
-                  viewMode === 'dual'
-                    ? 'bg-emerald-400 text-emerald-950'
-                    : 'bg-white/10 text-white hover:bg-white/20'
-                }`}
-              >
+              <button onClick={() => setViewMode('dual')} className={modeButton(viewMode === 'dual')}>
                 雙鏡頭
               </button>
 
-              <button
-                onClick={() => setViewMode('twelve')}
-                className={`rounded-lg px-3 py-2 text-xs font-bold transition ${
-                  viewMode === 'twelve'
-                    ? 'bg-emerald-400 text-emerald-950'
-                    : 'bg-white/10 text-white hover:bg-white/20'
-                }`}
-              >
+              <button onClick={() => setViewMode('twelve')} className={modeButton(viewMode === 'twelve')}>
                 12鏡頭
               </button>
 
               <button
                 onClick={handleStartMonitoring}
                 disabled={isMonitoring}
-                className="rounded-lg bg-lime-400 px-3 py-2 text-xs font-bold text-black transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:opacity-50"
+                className={`${controlButton} bg-lime-400 text-black hover:bg-lime-300`}
               >
                 開始監測
               </button>
@@ -225,7 +214,7 @@ const Dashboard: React.FC = () => {
               <button
                 onClick={handleStopMonitoring}
                 disabled={!isMonitoring}
-                className="rounded-lg bg-red-500 px-3 py-2 text-xs font-bold text-white transition hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-50"
+                className={`${controlButton} bg-red-500 text-white hover:bg-red-400`}
               >
                 停止監測
               </button>
@@ -244,7 +233,7 @@ const Dashboard: React.FC = () => {
                   ? '單鏡頭監控'
                   : viewMode === 'dual'
                   ? '雙鏡頭監控'
-                  : '即時監控矩陣'}
+                  : '多鏡頭監控'}
               </h2>
 
               <div className="rounded-lg bg-emerald-400 px-2 py-1 text-[8px] font-black text-emerald-950 shadow-lg shadow-emerald-400/20 2xl:px-3 2xl:py-1.5 2xl:text-[10px]">
@@ -269,33 +258,10 @@ const Dashboard: React.FC = () => {
               )}
 
               {viewMode === 'twelve' && (
-                <div className="grid grid-cols-2 gap-2 lg:grid-cols-3 2xl:grid-cols-4 2xl:gap-3">
-                  {cameras.map((camera) => (
-                    <div
-                      key={camera.id}
-                      className={`${glassInner} group relative overflow-hidden p-2 2xl:p-3 transition-all duration-300 hover:scale-[1.01] hover:bg-white/20`}
-                    >
-                      <div className="relative mb-1.5 aspect-[16/9] overflow-hidden rounded-md bg-slate-900 shadow-inner 2xl:rounded-lg">
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                        <div className="flex h-full items-center justify-center text-xs font-bold text-white/60 2xl:text-sm">
-                          {isMonitoring ? '監測中' : '未啟動'}
-                        </div>
-                      </div>
-
-                      <div
-                        className={`absolute right-2.5 top-2.5 flex h-6 w-6 items-center justify-center rounded-full text-[7px] font-black text-white shadow-xl 2xl:h-8 2xl:w-8 2xl:text-[9px] ${riskColors[camera.risk]}`}
-                      >
-                        {camera.risk}
-                      </div>
-
-                      <div className="mt-1 flex items-center gap-1.5 text-white">
-                        <span className="truncate text-[10px] font-bold lg:text-[11px] 2xl:text-sm">
-                          {camera.name}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <MultiCameraViewer
+                  isMonitoring={isMonitoring}
+                  sources={twelveSources}
+                />
               )}
             </div>
           </div>
@@ -329,7 +295,7 @@ const Dashboard: React.FC = () => {
                     className={`flex items-center justify-between rounded-lg border p-2 ${s.color}`}
                   >
                     <span className="text-[9px] font-bold opacity-70 2xl:text-[11px]">{s.label}</span>
-                    <span className="text-sm font-black xl:text-base 2xl:text-xl">{s.val}</span>
+                    <span className="text-sm font-black tabular-nums xl:text-base 2xl:text-xl">{s.val}</span>
                   </div>
                 ))}
               </div>

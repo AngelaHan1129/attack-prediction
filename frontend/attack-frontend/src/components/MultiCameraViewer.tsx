@@ -1,12 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Camera, AlertCircle } from 'lucide-react'
 
 const API_BASE = 'http://127.0.0.1:8000'
 
-type DualCameraViewerProps = {
+type MultiCameraViewerProps = {
   isMonitoring: boolean
-  source0: string
-  source1: string
+  sources: string[]
 }
 
 const glassPanel =
@@ -15,37 +14,29 @@ const glassPanel =
 const glassSection =
   'rounded-[12px] bg-black/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
 
-const DualCameraViewer = ({ isMonitoring, source0, source1 }: DualCameraViewerProps) => {
+export default function MultiCameraViewer({ isMonitoring, sources }: MultiCameraViewerProps) {
   const [taskId, setTaskId] = useState('')
   const [error, setError] = useState('')
   const [isStarting, setIsStarting] = useState(false)
   const [isStopping, setIsStopping] = useState(false)
-  const [cam0Url, setCam0Url] = useState('')
-  const [cam1Url, setCam1Url] = useState('')
+  const [streamUrls, setStreamUrls] = useState<Record<string, string>>({})
 
   const token = localStorage.getItem('token') || ''
+  const sourcesKey = useMemo(() => sources.join(','), [sources])
 
-  const clearStreams = () => {
-    setCam0Url('')
-    setCam1Url('')
-  }
-
-  const startDual = async () => {
+  const startMulti = async () => {
     try {
       setIsStarting(true)
       setError('')
-      clearStreams()
+      setStreamUrls({})
 
-      const res = await fetch(
-        `${API_BASE}/yolo/start/dual?source0=${source0}&source1=${source1}`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          credentials: 'include',
-        }
-      )
+      const res = await fetch(`${API_BASE}/yolo/start/multi?sources=${encodeURIComponent(sourcesKey)}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: 'include',
+      })
 
       const data = await res.json()
 
@@ -62,13 +53,13 @@ const DualCameraViewer = ({ isMonitoring, source0, source1 }: DualCameraViewerPr
         throw new Error(data.message || '未取得 task_id')
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : '發生未知錯誤')
+      setError(err instanceof Error ? err.message : '多鏡頭啟動失敗')
     } finally {
       setIsStarting(false)
     }
   }
 
-  const stopDual = async () => {
+  const stopMulti = async () => {
     if (!taskId) return
 
     try {
@@ -84,7 +75,7 @@ const DualCameraViewer = ({ isMonitoring, source0, source1 }: DualCameraViewerPr
       })
 
       setTaskId('')
-      clearStreams()
+      setStreamUrls({})
     } catch (err) {
       setError(err instanceof Error ? err.message : '停止任務失敗')
     } finally {
@@ -94,25 +85,30 @@ const DualCameraViewer = ({ isMonitoring, source0, source1 }: DualCameraViewerPr
 
   useEffect(() => {
     if (isMonitoring && !taskId && !isStarting) {
-      startDual()
+      startMulti()
     }
 
     if (!isMonitoring && taskId) {
-      stopDual()
+      stopMulti()
     }
-  }, [isMonitoring, source0, source1])
+  }, [isMonitoring, sourcesKey])
 
   useEffect(() => {
     if (!taskId) return
 
     const timer = setInterval(() => {
       const t = Date.now()
-      setCam0Url(`${API_BASE}/yolo/stream/${taskId}/cam0?t=${t}`)
-      setCam1Url(`${API_BASE}/yolo/stream/${taskId}/cam1?t=${t}`)
+      const nextUrls: Record<string, string> = {}
+
+      sources.forEach((source, index) => {
+        nextUrls[`cam${index}`] = `${API_BASE}/yolo/stream/${taskId}/cam${index}?t=${t}`
+      })
+
+      setStreamUrls(nextUrls)
     }, 200)
 
     return () => clearInterval(timer)
-  }, [taskId])
+  }, [taskId, sourcesKey])
 
   return (
     <div className="h-full space-y-3">
@@ -132,9 +128,9 @@ const DualCameraViewer = ({ isMonitoring, source0, source1 }: DualCameraViewerPr
               <Camera className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="text-sm font-black text-white 2xl:text-base">雙鏡頭即時監控</h3>
+              <h3 className="text-sm font-black text-white 2xl:text-base">多鏡頭即時監控</h3>
               <p className="text-[11px] text-white/45 2xl:text-xs">
-                Source {source0} / Source {source1}
+                共 {sources.length} 路來源，統一 ReID / Pose 偵測
               </p>
             </div>
           </div>
@@ -155,44 +151,51 @@ const DualCameraViewer = ({ isMonitoring, source0, source1 }: DualCameraViewerPr
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 p-3 xl:grid-cols-2 2xl:p-4">
-          {[{ label: source0, url: cam0Url }, { label: source1, url: cam1Url }].map((camera, index) => (
-            <div key={`${camera.label}-${index}`} className={`${glassSection} p-3`}>
-              <div className="mb-3 flex items-center justify-between">
-                <div>
-                  <h4 className="text-sm font-black text-white">Camera {camera.label}</h4>
-                  <p className="text-[11px] text-white/45">即時偵測畫面</p>
-                </div>
-                <div className="rounded-full bg-white/5 px-2.5 py-1 text-[10px] font-bold text-white/70">
-                  {taskId ? 'LIVE' : 'IDLE'}
-                </div>
-              </div>
+        <div className="p-3 2xl:p-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 2xl:grid-cols-4">
+            {sources.map((source, index) => {
+              const camKey = `cam${index}`
+              const url = streamUrls[camKey] || ''
 
-              <div className="relative flex min-h-[320px] items-center justify-center overflow-hidden rounded-2xl bg-slate-950/85 ring-1 ring-white/5">
-                {camera.url ? (
-                  <img
-                    src={camera.url}
-                    alt={`cam-${camera.label}`}
-                    className="h-full w-full object-contain"
-                  />
-                ) : (
-                  <div className="flex flex-col items-center justify-center px-6 text-center">
-                    <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 text-white/70">
-                      <Camera className="h-6 w-6" />
+              return (
+                <div key={camKey} className={`${glassSection} p-3`}>
+                  <div className="mb-3 flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-black text-white">Camera {source}</h4>
+                      <p className="text-[11px] text-white/45">映射 {camKey}</p>
                     </div>
-                    <h4 className="text-sm font-bold text-white">Camera {camera.label} 未啟動</h4>
-                    <p className="mt-2 text-xs leading-6 text-white/45">
-                      請於上方 Dashboard 點擊開始監測。
-                    </p>
+                    <div className="rounded-full bg-white/5 px-2.5 py-1 text-[10px] font-bold text-white/70">
+                      {taskId ? 'LIVE' : 'IDLE'}
+                    </div>
                   </div>
-                )}
-              </div>
-            </div>
-          ))}
+
+                  <div className="relative flex aspect-[16/9] items-center justify-center overflow-hidden rounded-2xl bg-slate-950/85 ring-1 ring-white/5">
+                    {url ? (
+                      <img
+                        src={url}
+                        alt={camKey}
+                        className="h-full w-full object-contain"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center px-4 text-center">
+                        <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-white/70">
+                          <Camera className="h-5 w-5" />
+                        </div>
+                        <h4 className="text-xs font-bold text-white lg:text-sm">
+                          Camera {source} 未啟動
+                        </h4>
+                        <p className="mt-1 text-[10px] text-white/45 lg:text-xs">
+                          等待多鏡頭任務開始
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       </div>
     </div>
   )
 }
-
-export default DualCameraViewer

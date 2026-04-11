@@ -1,6 +1,6 @@
 import uuid
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 
 from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from app.core.dependencies import require_admin
 from app.core.cv.pipelines.detect import run_detection, stop_events
 from app.core.cv.pipelines.dual_reid import run_detection_dual_reid
-
+from app.core.cv.pipelines.multi_reid import run_detection_multi_reid
 
 router = APIRouter(prefix="/yolo", tags=["YOLO Analysis"])
 
@@ -19,18 +19,32 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 SNAPSHOT_DIR = BASE_DIR / "data" / "snapshots"
 
 
+def ensure_no_running_task():
+    running_tasks = [tid for tid, s in active_tasks.items() if s == "running"]
+    if running_tasks:
+        return running_tasks[0]
+    return None
+
+
+def parse_sources_csv(sources: str) -> List[str]:
+    values = [s.strip() for s in sources.split(",") if s.strip()]
+    if not values:
+        raise HTTPException(status_code=400, detail="sources 不可為空")
+    return values
+
+
 @router.post("/start", response_model=dict, openapi_extra={"security": SECURITY_SCHEMA})
 async def start_yolo(
     background_tasks: BackgroundTasks,
     source: str = "0",
     current_user=Depends(require_admin)
 ):
-    running_tasks = [tid for tid, s in active_tasks.items() if s == "running"]
-    if running_tasks:
+    running_task_id = ensure_no_running_task()
+    if running_task_id:
         return {
             "status": "error",
             "message": "已有 YOLO 任務正在執行",
-            "active_task_id": running_tasks[0]
+            "active_task_id": running_task_id
         }
 
     task_id = str(uuid.uuid4())[:8]
@@ -46,7 +60,7 @@ async def start_yolo(
 
     return {
         "status": "success",
-        "message": "YOLO 單鏡頭任務已啟動",
+        "message": "YOLO 單鏡頭統一 ReID 任務已啟動",
         "task_id": task_id,
         "source": source,
         "started_by": current_user.email
@@ -60,12 +74,12 @@ async def start_yolo_dual(
     source1: str = "1",
     current_user=Depends(require_admin)
 ):
-    running_tasks = [tid for tid, s in active_tasks.items() if s == "running"]
-    if running_tasks:
+    running_task_id = ensure_no_running_task()
+    if running_task_id:
         return {
             "status": "error",
             "message": "已有 YOLO 任務正在執行",
-            "active_task_id": running_tasks[0]
+            "active_task_id": running_task_id
         }
 
     task_id = str(uuid.uuid4())[:8]
@@ -82,10 +96,46 @@ async def start_yolo_dual(
 
     return {
         "status": "success",
-        "message": "YOLO 雙鏡頭 ReID 任務已啟動",
+        "message": "YOLO 雙鏡頭統一 ReID 任務已啟動",
         "task_id": task_id,
         "source0": source0,
         "source1": source1,
+        "started_by": current_user.email
+    }
+
+
+@router.post("/start/multi", response_model=dict, openapi_extra={"security": SECURITY_SCHEMA})
+async def start_yolo_multi(
+    background_tasks: BackgroundTasks,
+    sources: str = "0,1",
+    current_user=Depends(require_admin)
+):
+    running_task_id = ensure_no_running_task()
+    if running_task_id:
+        return {
+            "status": "error",
+            "message": "已有 YOLO 任務正在執行",
+            "active_task_id": running_task_id
+        }
+
+    source_list = parse_sources_csv(sources)
+
+    task_id = str(uuid.uuid4())[:8]
+    active_tasks[task_id] = "running"
+    stop_events[task_id] = False
+
+    background_tasks.add_task(
+        run_detection_multi_reid,
+        sources=source_list,
+        conf=0.5,
+        task_id=task_id
+    )
+
+    return {
+        "status": "success",
+        "message": "YOLO 多鏡頭統一 ReID 任務已啟動",
+        "task_id": task_id,
+        "sources": source_list,
         "started_by": current_user.email
     }
 
@@ -120,12 +170,9 @@ async def stop_yolo(task_id: str, current_user=Depends(require_admin)):
 
 
 @router.get("/stream/{task_id}/{cam}")
-async def get_frame_dual(task_id: str, cam: str):
-    if cam not in ("cam0", "cam1"):
-        raise HTTPException(status_code=400, detail="Invalid camera")
-
+async def get_frame_by_cam(task_id: str, cam: str):
     img_path = SNAPSHOT_DIR / f"{task_id}_{cam}_latest.jpg"
-    print(f"[get_frame_dual] checking: {img_path} exists={img_path.exists()}")
+    print(f"[get_frame_by_cam] checking: {img_path} exists={img_path.exists()}")
 
     if img_path.exists():
         return FileResponse(
@@ -143,12 +190,14 @@ async def get_frame_dual(task_id: str, cam: str):
 
 @router.get("/stream/{task_id}")
 async def get_frame_single(task_id: str):
-    img_path = SNAPSHOT_DIR / f"{task_id}_latest.jpg"
-    print(f"[get_frame_single] checking: {img_path} exists={img_path.exists()}")
+    preferred = SNAPSHOT_DIR / f"{task_id}_cam0_latest.jpg"
+    legacy = SNAPSHOT_DIR / f"{task_id}_latest.jpg"
 
-    if img_path.exists():
+    print(f"[get_frame_single] checking preferred={preferred.exists()} legacy={legacy.exists()}")
+
+    if preferred.exists():
         return FileResponse(
-            str(img_path),
+            str(preferred),
             media_type="image/jpeg",
             headers={
                 "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
@@ -157,7 +206,18 @@ async def get_frame_single(task_id: str):
             }
         )
 
-    raise HTTPException(status_code=404, detail=f"Frame not ready: {img_path}")
+    if legacy.exists():
+        return FileResponse(
+            str(legacy),
+            media_type="image/jpeg",
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+        )
+
+    raise HTTPException(status_code=404, detail=f"Frame not ready for task {task_id}")
 
 
 @router.get("/tasks", openapi_extra={"security": SECURITY_SCHEMA})

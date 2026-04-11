@@ -18,10 +18,10 @@ type YoloViewerProps = {
 }
 
 const glassPanel =
-  'rounded-[14px] 2xl:rounded-[16px] border border-white/15 bg-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_8px_24px_rgba(0,0,0,0.18)] backdrop-blur-xl'
+  'rounded-[14px] 2xl:rounded-[16px] bg-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_8px_24px_rgba(0,0,0,0.18)] backdrop-blur-xl'
 
 const glassSection =
-  'rounded-[12px] border border-white/10 bg-black/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
+  'rounded-[12px] bg-black/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
 
 export default function YoloViewer({ isMonitoring, source }: YoloViewerProps) {
   const [taskId, setTaskId] = useState('')
@@ -42,6 +42,7 @@ export default function YoloViewer({ isMonitoring, source }: YoloViewerProps) {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        credentials: 'include',
       })
 
       const data: StartYoloResponse = await res.json()
@@ -71,6 +72,7 @@ export default function YoloViewer({ isMonitoring, source }: YoloViewerProps) {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        credentials: 'include',
       })
     } catch {
       setError('停止失敗')
@@ -95,7 +97,7 @@ export default function YoloViewer({ isMonitoring, source }: YoloViewerProps) {
     if (!taskId) return
 
     const timer = setInterval(() => {
-      setImageUrl(`${API_BASE}/yolo/stream/${taskId}?t=${Date.now()}`)
+      setImageUrl(`${API_BASE}/yolo/stream/${taskId}/cam0?t=${Date.now()}`)
     }, 200)
 
     return () => clearInterval(timer)
@@ -104,7 +106,7 @@ export default function YoloViewer({ isMonitoring, source }: YoloViewerProps) {
   return (
     <div className="h-full">
       {error && (
-        <div className="mb-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+        <div className="mb-3 rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-200">
           <div className="flex items-center gap-2">
             <AlertCircle className="h-4 w-4" />
             <span>{error}</span>
@@ -112,13 +114,43 @@ export default function YoloViewer({ isMonitoring, source }: YoloViewerProps) {
         </div>
       )}
 
-      <div className={` overflow-hidden`}>
+      <div className={`${glassPanel} overflow-hidden`}>
+        <div className="flex flex-col gap-3 px-4 py-4 lg:flex-row lg:items-center lg:justify-between 2xl:px-5">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-400/15 text-emerald-400">
+                <Camera className="h-4 w-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-white 2xl:text-base">單鏡頭即時監控</h3>
+                <p className="text-[11px] text-white/45 2xl:text-xs">來源鏡頭 Source {source}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="rounded-full bg-white/5 px-3 py-1 text-[11px] font-bold text-white/70">
+              {taskId ? `Task ${taskId}` : '尚未啟動'}
+            </div>
+            <div
+              className={`rounded-full px-3 py-1 text-[11px] font-black ${
+                taskId
+                  ? 'bg-emerald-400 text-emerald-950'
+                  : 'bg-white/10 text-white/70'
+              }`}
+            >
+              {loading ? 'STARTING' : stopping ? 'STOPPING' : taskId ? 'RUNNING' : 'IDLE'}
+            </div>
+          </div>
+        </div>
+
         <div className="p-3 2xl:p-4">
-            <div className="relative flex min-h-[320px] items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-slate-950/80 sm:min-h-[420px]">
+          <div className={`${glassSection} p-3`}>
+            <div className="relative flex min-h-[320px] items-center justify-center overflow-hidden rounded-2xl bg-slate-950/85 ring-1 ring-white/5 sm:min-h-[420px]">
               {taskId ? (
                 <img
                   src={imageUrl}
-                  alt="YOLO stream"
+                  alt="YOLO stream cam0"
                   className="h-full w-full object-contain"
                 />
               ) : (
@@ -136,5 +168,6 @@ export default function YoloViewer({ isMonitoring, source }: YoloViewerProps) {
           </div>
         </div>
       </div>
+    </div>
   )
 }
