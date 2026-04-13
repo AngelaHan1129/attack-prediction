@@ -8,20 +8,23 @@ import cv2
 import numpy as np
 import torch
 import torchvision.transforms as T
-import mediapipe as mp
 import torchreid
-
 from ultralytics import YOLO
 
 from app.core.cv.pipelines.data_recorder import DataRecorder
-
+from app.core.utils.pose_utils import (
+    extract_mediapipe_pose,
+    draw_pose_on_frame,
+    pose_model_exists,
+    get_pose_task_path,
+    get_pose_estimator,
+)
 
 BASE_DIR = Path(__file__).resolve().parents[4]
 SNAPSHOT_DIR = BASE_DIR / "data" / "snapshots"
 SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
 
 MODEL_PATH = BASE_DIR / "weights" / "yolo26n.pt"
-POSE_TASK_PATH = BASE_DIR / "weights" / "pose_landmarker_lite.task"
 TRACKER_PATH = BASE_DIR / "app" / "scripts" / "custom_tracker.yaml"
 
 CONF_DEFAULT = 0.45
@@ -55,32 +58,11 @@ reid_transforms = T.Compose([
     T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
 
-BaseOptions = mp.tasks.BaseOptions
-PoseLandmarker = mp.tasks.vision.PoseLandmarker
-PoseLandmarkerOptions = mp.tasks.vision.PoseLandmarkerOptions
-VisionRunningMode = mp.tasks.vision.RunningMode
-
-_pose_estimator = None
 _global_lock = threading.Lock()
 
 person_db: Dict[int, Dict[str, Any]] = {}
 track_to_person: Dict[Tuple[str, int], Dict[str, Any]] = {}
 next_person_id = 1
-
-POSE_CONNECTIONS = [
-    (0,1),(1,2),(2,3),(3,7),
-    (0,4),(4,5),(5,6),(6,8),
-    (9,10),
-    (11,12),
-    (11,13),(13,15),
-    (12,14),(14,16),
-    (15,17),(15,19),(15,21),
-    (16,18),(16,20),(16,22),
-    (11,23),(12,24),
-    (23,24),
-    (23,25),(25,27),(27,29),(29,31),
-    (24,26),(26,28),(28,30),(30,32),
-]
 
 CAM_COLORS = [
     (0, 255, 0),
@@ -100,20 +82,6 @@ CAM_COLORS = [
 
 def now_ts() -> float:
     return time.time()
-
-
-def get_pose_estimator():
-    global _pose_estimator
-    if _pose_estimator is None:
-        if not POSE_TASK_PATH.exists():
-            raise FileNotFoundError(f"找不到 MediaPipe task 檔案: {POSE_TASK_PATH}")
-
-        options = PoseLandmarkerOptions(
-            base_options=BaseOptions(model_asset_path=str(POSE_TASK_PATH)),
-            running_mode=VisionRunningMode.IMAGE
-        )
-        _pose_estimator = PoseLandmarker.create_from_options(options)
-    return _pose_estimator
 
 
 def reset_global_state():
@@ -138,7 +106,11 @@ def open_camera(source: str):
 
 def save_snapshot(task_id: str, cam_name: str, frame: np.ndarray):
     path = SNAPSHOT_DIR / f"{task_id}_{cam_name}_latest.jpg"
-    cv2.imwrite(str(path), frame)
+    tmp_path = SNAPSHOT_DIR / f"{task_id}_{cam_name}_latest.tmp.jpg"
+
+    ok = cv2.imwrite(str(tmp_path), frame)
+    if ok:
+        tmp_path.replace(path)
 
 
 def l2_normalize(vec: np.ndarray, eps: float = 1e-12):
@@ -165,6 +137,23 @@ def safe_crop(frame: np.ndarray, box: List[int]):
         return None
     crop = frame[y1:y2, x1:x2]
     return crop if crop.size > 0 else None
+
+
+def expand_box(box: List[int], frame_shape, scale_x=0.18, scale_y=0.22):
+    h, w = frame_shape[:2]
+    x1, y1, x2, y2 = box
+    bw = x2 - x1
+    bh = y2 - y1
+
+    pad_x = int(bw * scale_x)
+    pad_y = int(bh * scale_y)
+
+    nx1 = max(0, x1 - pad_x)
+    ny1 = max(0, y1 - pad_y)
+    nx2 = min(w - 1, x2 + pad_x)
+    ny2 = min(h - 1, y2 + pad_y)
+
+    return [nx1, ny1, nx2, ny2]
 
 
 def crop_quality_ok(crop: Optional[np.ndarray]) -> bool:
@@ -197,30 +186,6 @@ def extract_deep_embedding(person_crop: Optional[np.ndarray]):
         emb = reid_model(img_t).squeeze().cpu().numpy()
 
     return l2_normalize(emb)
-
-
-def extract_mediapipe_pose(person_crop: Optional[np.ndarray]):
-    if person_crop is None or person_crop.size == 0:
-        return None
-
-    try:
-        estimator = get_pose_estimator()
-    except Exception as e:
-        print(f"[WARN] PoseLandmarker 初始化失敗: {e}")
-        return None
-
-    image_rgb = cv2.cvtColor(person_crop, cv2.COLOR_BGR2RGB)
-    mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image_rgb)
-    detection_result = estimator.detect(mp_image)
-
-    if not detection_result.pose_landmarks:
-        return None
-
-    landmarks = []
-    for lm in detection_result.pose_landmarks[0]:
-        landmarks.append([float(lm.x), float(lm.y), float(lm.z)])
-
-    return landmarks
 
 
 def create_new_person(emb: np.ndarray, camera_name: str) -> int:
@@ -327,28 +292,6 @@ def update_person_sequence(person_id: int, landmarks: Optional[List[List[float]]
     person_db[person_id]["skeleton_sequence"].append(landmarks)
 
 
-def draw_pose_on_frame(frame: np.ndarray, box: List[int], landmarks: Optional[List[List[float]]], color=(0, 255, 255)):
-    if not landmarks:
-        return
-
-    x1, y1, x2, y2 = box
-    w = max(1, x2 - x1)
-    h = max(1, y2 - y1)
-
-    pts = []
-    for lm in landmarks:
-        px = int(x1 + lm[0] * w)
-        py = int(y1 + lm[1] * h)
-        pts.append((px, py))
-
-    for a, b in POSE_CONNECTIONS:
-        if a < len(pts) and b < len(pts):
-            cv2.line(frame, pts[a], pts[b], color, 2)
-
-    for px, py in pts:
-        cv2.circle(frame, (px, py), 2, (255, 255, 0), -1)
-
-
 def draw_person(
     frame: np.ndarray,
     box: List[int],
@@ -422,8 +365,30 @@ def process_camera_frame(
     confs = result.boxes.conf.cpu().tolist()
 
     for box, track_id, det_conf in zip(boxes, track_ids, confs):
-        crop = safe_crop(frame, box)
-        emb = extract_deep_embedding(crop)
+        pose_box = expand_box(box, frame.shape, scale_x=0.18, scale_y=0.22)
+        pose_crop = safe_crop(frame, pose_box)
+
+        if pose_crop is None:
+            print(f"[POSE] crop is None, track={track_id}, box={box}")
+            continue
+
+        ph, pw = pose_crop.shape[:2]
+        print(f"[POSE] track={track_id}, pose_box={pose_box}, crop=({pw}x{ph})")
+
+        landmarks = None
+        if ph >= 160 and pw >= 80:
+            landmarks = extract_mediapipe_pose(pose_crop)
+        else:
+            print(f"[POSE] crop too small, skip pose: track={track_id}, crop=({pw}x{ph})")
+
+        if landmarks:
+            print(f"[POSE] landmarks detected: track={track_id}, points={len(landmarks)}")
+            draw_pose_on_frame(vis, pose_box, landmarks, color=(0, 255, 255))
+        else:
+            print(f"[POSE] no landmarks: track={track_id}")
+
+        emb_crop = safe_crop(frame, box)
+        emb = extract_deep_embedding(emb_crop)
 
         if emb is None:
             x1, y1, x2, y2 = box
@@ -440,11 +405,9 @@ def process_camera_frame(
             continue
 
         person_id, note = resolve_person_id(camera_name, int(track_id), emb)
-        landmarks = extract_mediapipe_pose(crop)
 
         if landmarks:
             update_person_sequence(person_id, landmarks)
-            draw_pose_on_frame(vis, box, landmarks, color=(0, 255, 255))
             seq_len = len(person_db[person_id]["skeleton_sequence"])
             note = f"{note} pose:{seq_len}/150"
 
@@ -486,7 +449,17 @@ def run_detection_multi_reid(
         stop_events.pop(task_id, None)
         return
 
+    if not pose_model_exists():
+        print(f"⚠️ 找不到 MediaPipe Pose task 檔: {get_pose_task_path()}")
+        print("⚠️ 系統仍可執行 YOLO + ReID，但不會顯示骨架姿態")
+
     reset_global_state()
+
+    try:
+        get_pose_estimator()
+        print(f"✅ PoseLandmarker loaded: {get_pose_task_path()}")
+    except Exception as e:
+        print(f"⚠️ PoseLandmarker 載入失敗: {e}")
 
     try:
         model = YOLO(str(MODEL_PATH))

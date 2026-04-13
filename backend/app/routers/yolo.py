@@ -2,8 +2,9 @@ import uuid
 from pathlib import Path
 from typing import Dict, List
 
+import cv2
 from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 
 from app.core.dependencies import require_admin
 from app.core.cv.pipelines.detect import run_detection, stop_events
@@ -31,6 +32,30 @@ def parse_sources_csv(sources: str) -> List[str]:
     if not values:
         raise HTTPException(status_code=400, detail="sources 不可為空")
     return values
+
+
+def image_no_cache_headers():
+    return {
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        "Pragma": "no-cache",
+        "Expires": "0",
+    }
+
+
+def read_image_response(img_path: Path) -> Response:
+    img = cv2.imread(str(img_path))
+    if img is None:
+        raise HTTPException(status_code=503, detail="Frame decode failed")
+
+    ok, buf = cv2.imencode(".jpg", img)
+    if not ok:
+        raise HTTPException(status_code=503, detail="Frame encode failed")
+
+    return Response(
+        content=buf.tobytes(),
+        media_type="image/jpeg",
+        headers=image_no_cache_headers(),
+    )
 
 
 @router.post("/start", response_model=dict, openapi_extra={"security": SECURITY_SCHEMA})
@@ -174,18 +199,10 @@ async def get_frame_by_cam(task_id: str, cam: str):
     img_path = SNAPSHOT_DIR / f"{task_id}_{cam}_latest.jpg"
     print(f"[get_frame_by_cam] checking: {img_path} exists={img_path.exists()}")
 
-    if img_path.exists():
-        return FileResponse(
-            str(img_path),
-            media_type="image/jpeg",
-            headers={
-                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-                "Pragma": "no-cache",
-                "Expires": "0"
-            }
-        )
+    if not img_path.exists():
+        raise HTTPException(status_code=404, detail=f"Frame not ready: {img_path}")
 
-    raise HTTPException(status_code=404, detail=f"Frame not ready: {img_path}")
+    return read_image_response(img_path)
 
 
 @router.get("/stream/{task_id}")
@@ -195,29 +212,12 @@ async def get_frame_single(task_id: str):
 
     print(f"[get_frame_single] checking preferred={preferred.exists()} legacy={legacy.exists()}")
 
-    if preferred.exists():
-        return FileResponse(
-            str(preferred),
-            media_type="image/jpeg",
-            headers={
-                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-                "Pragma": "no-cache",
-                "Expires": "0"
-            }
-        )
+    img_path = preferred if preferred.exists() else legacy if legacy.exists() else None
 
-    if legacy.exists():
-        return FileResponse(
-            str(legacy),
-            media_type="image/jpeg",
-            headers={
-                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-                "Pragma": "no-cache",
-                "Expires": "0"
-            }
-        )
+    if img_path is None:
+        raise HTTPException(status_code=404, detail=f"Frame not ready for task {task_id}")
 
-    raise HTTPException(status_code=404, detail=f"Frame not ready for task {task_id}")
+    return read_image_response(img_path)
 
 
 @router.get("/tasks", openapi_extra={"security": SECURITY_SCHEMA})

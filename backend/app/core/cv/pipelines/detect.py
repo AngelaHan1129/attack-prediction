@@ -20,10 +20,8 @@ print("MODEL_PATH =", MODEL_PATH, MODEL_PATH.exists())
 print("TRACKER_PATH =", TRACKER_PATH, TRACKER_PATH.exists())
 print("SNAPSHOT_DIR =", SNAPSHOT_DIR)
 
-
 def open_source(src: str):
     return src
-
 
 def run_detection(
     source: str = "0",
@@ -41,7 +39,6 @@ def run_detection(
         conf=conf,
         task_id=task_id,
     )
-
 
 def run_detection_dual(
     source0: str = "0",

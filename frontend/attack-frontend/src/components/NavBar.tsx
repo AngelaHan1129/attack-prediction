@@ -28,14 +28,13 @@ const NavBar: React.FC = () => {
   const navItems: NavItem[] = isLoggedIn
     ? [
         { to: '/dashboard', label: '主畫面' },
-        { to: '/yolo-dual', label: '鏡頭' }
       ]
     : [{ to: '/', label: '首頁' }]
 
   return (
-    <div className="pointer-events-none fixed bottom-4 left-1/2 z-50 flex w-full -translate-x-1/2 justify-center px-4">
-      <nav className="pointer-events-auto w-full max-w-2xl">
-        <div className="flex items-center justify-between rounded-full border border-lime-300/40 bg-white/75 px-2 py-2 shadow-[0_0_20px_rgba(163,230,53,0.10)] backdrop-blur-xl">
+    <div className="pointer-events-none fixed bottom-6 left-1/2 z-50 flex w-full -translate-x-1/2 justify-center px-4">
+    <nav className="pointer-events-auto w-full max-w-xs md:max-w-md"> {/* 縮小導覽列寬度，更像膠囊 */}
+      <div className="flex items-center justify-between rounded-full border border-white/20 bg-white/40 px-2 py-2 shadow-2xl backdrop-blur-2xl">
           <div className="flex items-center gap-2">
             {navItems.map((item) => {
               const isActive = location.pathname === item.to
