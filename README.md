@@ -99,7 +99,7 @@ attack-prediction/
 ### 後台管理功能
 ```
 👥 使用者管理 (角色/場域權限)
-📷 鏡頭管理 (RTSP/狀態監控)
+📷 鏡頭管理 (RTSP/狀態監視)
 ⚙️ 系統設定 (AHP權重/告警門檻)
 📊 操作日誌 (誰看了什麼、何時看)
 ```
@@ -185,7 +185,7 @@ JWT_SECRET=your-super-secret-jwt-key-here
 # 生產部署
 docker-compose -f docker-compose.prod.yml up -d
 
-# 監控
+# 監視
 docker-compose logs -f backend
 docker stats
 ```

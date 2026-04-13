@@ -117,7 +117,7 @@ const LoginForm: React.FC = () => {
           <div className="mt-6 ml-auto h-px w-32 bg-gradient-to-r from-transparent via-white/70 to-transparent md:w-40" />
 
           <p className="mt-6 text-sm leading-relaxed text-black/55 md:text-base xl:text-lg">
-            智慧監控、事件分析與安全驗證整合平台
+            智慧監視、事件分析與安全驗證整合平台
           </p>
         </div>
       </div>
@@ -154,7 +154,7 @@ const LoginForm: React.FC = () => {
             <h1 className="mb-1 bg-gradient-to-r from-lime-500 via-lime-600 to-lime-700 bg-clip-text text-xl font-black tracking-tight text-transparent sm:text-2xl md:text-3xl xl:text-4xl">
               {isLogin ? 'Welcome Back' : 'Join Us'}
             </h1>
-            <p className="text-[10px] font-light text-black/80 sm:text-xs md:text-sm">安全登入你的監控系統</p>
+            <p className="text-[10px] font-light text-black/80 sm:text-xs md:text-sm">安全登入你的監視系統</p>
           </div>
 
           {/* 表單欄位 */}

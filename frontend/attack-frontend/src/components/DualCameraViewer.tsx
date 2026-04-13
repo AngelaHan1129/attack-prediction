@@ -132,8 +132,8 @@ const DualCameraViewer = ({ isMonitoring, source0, source1 }: DualCameraViewerPr
               <Camera className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="text-sm font-black text-white 2xl:text-base">雙鏡頭即時監控</h3>
-              <p className="text-[11px] text-white/45 2xl:text-xs">
+              <h3 className="text-sm font-black text-black 2xl:text-base">雙鏡頭即時監視</h3>
+              <p className="text-[11px] text-black/45 2xl:text-xs">
                 Source {source0} / Source {source1}
               </p>
             </div>

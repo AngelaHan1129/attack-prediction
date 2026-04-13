@@ -111,91 +111,89 @@ export default function MultiCameraViewer({ isMonitoring, sources }: MultiCamera
   }, [taskId, sourcesKey])
 
   return (
-    <div className="h-full space-y-3">
-      {error && (
-        <div className="rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-200">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4" />
-            <span>{error}</span>
-          </div>
+  <div className="flex flex-col h-full space-y-3 min-h-0">
+    {/* 錯誤提示 */}
+    {error && (
+      <div className="shrink-0 rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-200">
+        <div className="flex items-center gap-2">
+          <AlertCircle className="h-4 w-4" />
+          <span>{error}</span>
         </div>
-      )}
+      </div>
+    )}
 
-      <div className={`${glassPanel} overflow-hidden`}>
-        <div className="flex flex-col gap-3 px-4 py-4 lg:flex-row lg:items-center lg:justify-between 2xl:px-5">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-400/15 text-emerald-400">
-              <Camera className="h-4 w-4" />
-            </div>
-            <div>
-              <h3 className="text-sm font-black text-white 2xl:text-base">多鏡頭即時監控</h3>
-              <p className="text-[11px] text-white/45 2xl:text-xs">
-                共 {sources.length} 路來源，統一 ReID / Pose 偵測
-              </p>
-            </div>
+    {/* 主面板容器 - 設定 flex-1 填滿剩餘空間，min-h-0 觸發滾動 */}
+    <div className={`${glassPanel} flex flex-1 flex-col overflow-hidden min-h-0`}>
+      
+      {/* 標題與狀態列 - shrink-0 防止被壓縮 */}
+      <div className="flex shrink-0 flex-col gap-3 px-4 py-4 lg:flex-row lg:items-center lg:justify-between 2xl:px-5">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-400/15 text-emerald-400">
+            <Camera className="h-4 w-4" />
           </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="rounded-full bg-white/5 px-3 py-1 text-[11px] font-bold text-white/70">
-              {taskId ? `Task ${taskId}` : '尚未啟動'}
-            </div>
-            <div
-              className={`rounded-full px-3 py-1 text-[11px] font-black ${
-                taskId
-                  ? 'bg-emerald-400 text-emerald-950'
-                  : 'bg-white/10 text-white/70'
-              }`}
-            >
-              {isStarting ? 'STARTING' : isStopping ? 'STOPPING' : taskId ? 'RUNNING' : 'IDLE'}
-            </div>
+          <div>
+            <h3 className="text-sm font-black text-black 2xl:text-base">多鏡頭即時監視</h3>
+            <p className="text-[11px] text-black/45 2xl:text-xs">
+              共 {sources.length} 路來源，統一 ReID / Pose 偵測
+            </p>
           </div>
         </div>
 
-        <div className="p-3 2xl:p-4">
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 2xl:grid-cols-4">
-            {sources.map((source, index) => {
-              const camKey = `cam${index}`
-              const url = streamUrls[camKey] || ''
-
-              return (
-                <div key={camKey} className={`${glassSection} p-3`}>
-                  <div className="mb-3 flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-black text-white">Camera {source}</h4>
-                      <p className="text-[11px] text-white/45">映射 {camKey}</p>
-                    </div>
-                    <div className="rounded-full bg-white/5 px-2.5 py-1 text-[10px] font-bold text-white/70">
-                      {taskId ? 'LIVE' : 'IDLE'}
-                    </div>
-                  </div>
-
-                  <div className="relative flex aspect-[16/9] items-center justify-center overflow-hidden rounded-2xl bg-slate-950/85 ring-1 ring-white/5">
-                    {url ? (
-                      <img
-                        src={url}
-                        alt={camKey}
-                        className="h-full w-full object-contain"
-                      />
-                    ) : (
-                      <div className="flex flex-col items-center justify-center px-4 text-center">
-                        <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-white/70">
-                          <Camera className="h-5 w-5" />
-                        </div>
-                        <h4 className="text-xs font-bold text-white lg:text-sm">
-                          Camera {source} 未啟動
-                        </h4>
-                        <p className="mt-1 text-[10px] text-white/45 lg:text-xs">
-                          等待多鏡頭任務開始
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="rounded-full bg-white/5 px-3 py-1 text-[11px] font-bold text-white/70">
+            {taskId ? `Task ${taskId.slice(0,8)}...` : '尚未啟動'}
+          </div>
+          <div className={`rounded-full px-3 py-1 text-[11px] font-black ${
+            taskId ? 'bg-emerald-400 text-emerald-950' : 'bg-white/10 text-white/70'
+          }`}>
+            {isStarting ? 'STARTING' : isStopping ? 'STOPPING' : taskId ? 'RUNNING' : 'IDLE'}
           </div>
         </div>
       </div>
+
+      {/* 鏡頭畫面滾動區塊 - 這裡是最關鍵的滾動處 */}
+      <div className="custom-scrollbar flex-1 overflow-y-auto p-3 2xl:p-4 bg-black/20">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+          {sources.map((source, index) => {
+            const camKey = `cam${index}`
+            const url = streamUrls[camKey] || ''
+
+            return (
+              <div key={camKey} className={`${glassSection} p-3 flex flex-col`}>
+                <div className="mb-3 flex items-center justify-between shrink-0">
+                  <div>
+                    <h4 className="text-sm font-black text-white">Camera {source}</h4>
+                    <p className="text-[11px] text-white/45">對映 {camKey}</p>
+                  </div>
+                  <div className="rounded-full bg-white/5 px-2.5 py-1 text-[10px] font-bold text-white/70">
+                    {taskId ? 'LIVE' : 'IDLE'}
+                  </div>
+                </div>
+
+                <div className="relative flex aspect-[16/9] items-center justify-center overflow-hidden rounded-2xl bg-slate-950/85 ring-1 ring-white/5">
+                  {url ? (
+                    <img
+                      src={url}
+                      alt={camKey}
+                      className="h-full w-full object-contain"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center px-4 text-center">
+                      <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-white/70">
+                        <Camera className="h-5 w-5" />
+                      </div>
+                      <h4 className="text-xs font-bold text-white lg:text-sm">
+                        Camera {source} 未啟動
+                      </h4>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
     </div>
-  )
+  </div>
+)
 }
