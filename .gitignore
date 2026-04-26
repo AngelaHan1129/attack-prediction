@@ -1,47 +1,97 @@
+# =========================
 # Python
+# =========================
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.python-version
+
+# Virtual environment
+venv/
 .venv/
-.env
-
-# Node
-node_modules/
-dist/
-
-# Docker
-.dockerignore
-
-# 模型權重 (太大)
-backend/static/models/*.pt
-backend/static/models/*.pth
-backend/app/weights/yolo26n.pt
-# 資料庫
-*.db
-# venv
-.venv/
+ENV/
+env/
+STGCN/venv/
 backend/venv/
-backend/__pycache__/
-backend/*.pyc
-backend/app.db
 
-# FastAPI / backend generated data
-backend/app/data/sessions/
-backend/data/sessions/
-backend/data/snapshots/
-backend/app/data/snapshots/
-backend/data/sessions/**/*.jsonl
-backend/data/sessions/**/*_mask.npy
-backend/data/sessions/**/*meta.json
-backend/app/data/**/*.jpg
-backend/app/data/**/*.jpeg
-backend/app/data/**/*.png
-backend/app/data/**/*.jsonl
-backend/app/data/**/*.npy
-backend/app/data/**/meta.json
-# node
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# =========================
+# Node / Frontend
+# =========================
+node_modules/
 frontend/node_modules/
 frontend/.nuxt/
+dist/
 frontend/dist/
-# env
-.env
-*.log
+
+# =========================
+# Docker
+# =========================
+.dockerignore
+
+# =========================
+# Database
+# =========================
+*.db
+backend/app.db
+
+# =========================
+# Model weights / checkpoints
+# =========================
+*.pt
+*.pth
+*.ckpt
+checkpoints/
+backend/static/models/
+backend/app/weights/
+
+# 如果你只想忽略特定模型，也可改成：
+# backend/app/weights/yolo26n.pt
+# backend/static/models/*.pt
+# backend/static/models/*.pth
+
+# =========================
+# Generated backend data
+# =========================
+backend/app/data/
+backend/data/sessions/
+backend/data/snapshots/
+backend/app/data/sessions/
+backend/app/data/snapshots/
+
+# 若你不想整包忽略，也可以只忽略特定格式：
+# backend/data/sessions/**/*.jsonl
+# backend/data/sessions/**/*_mask.npy
+# backend/data/sessions/**/*meta.json
+# backend/app/data/**/*.jpg
+# backend/app/data/**/*.jpeg
+# backend/app/data/**/*.png
+# backend/app/data/**/*.jsonl
+# backend/app/data/**/*.npy
+# backend/app/data/**/meta.json
+
+# =========================
+# Build / cache
+# =========================
+.pytest_cache/
+.mypy_cache/
+.cache/
+coverage/
+htmlcov/
+
+# =========================
+# OS / editor
+# =========================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
