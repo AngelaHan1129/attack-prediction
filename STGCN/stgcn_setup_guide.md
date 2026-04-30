@@ -206,5 +206,3 @@ python scripts/preprocess.py
 python scripts/train.py
 python scripts/infer.py --sample data/processed/test/samples/clip_0001.npy
 ```
-
-這套流程適合先把整條資料管線跑通，再逐步增加樣本量、改善標註品質，最後再擴充到多人追蹤、風險分級與早期攻擊意圖預測。[1]

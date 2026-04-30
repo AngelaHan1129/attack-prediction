@@ -6,9 +6,36 @@ __pycache__/
 *.pyo
 *.pyd
 *.so
+*.dylib
 .python-version
 
+# Packaging / build
+build/
+dist/
+site/
+.eggs/
+*.egg
+*.egg-info/
+pip-wheel-metadata/
+
+# Testing / cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+coverage/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# =========================
 # Virtual environment
+# =========================
 venv/
 .venv/
 ENV/
@@ -16,13 +43,24 @@ env/
 STGCN/venv/
 backend/venv/
 
-# Environment variables
+# =========================
+# Environment variables / secrets
+# =========================
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+*.crt
+secrets.json
+credentials.json
 
+# =========================
 # Logs
+# =========================
 *.log
+logs/
+log/
 
 # =========================
 # Node / Frontend
@@ -30,8 +68,12 @@ backend/venv/
 node_modules/
 frontend/node_modules/
 frontend/.nuxt/
+frontend/.output/
 dist/
 frontend/dist/
+.next/
+out/
+*.tsbuildinfo
 
 # =========================
 # Docker
@@ -42,6 +84,7 @@ frontend/dist/
 # Database
 # =========================
 *.db
+*.sqlite3
 backend/app.db
 
 # =========================
@@ -49,24 +92,48 @@ backend/app.db
 # =========================
 *.pt
 *.pth
+*.onnx
+*.engine
 *.ckpt
+*.tflite
+*.trt
 checkpoints/
+runs/
+wandb/
+mlruns/
 backend/static/models/
 backend/app/weights/
 
-# 如果你只想忽略特定模型，也可改成：
+# 若你只想忽略特定模型，也可改成：
 # backend/app/weights/yolo26n.pt
 # backend/static/models/*.pt
 # backend/static/models/*.pth
 
 # =========================
-# Generated backend data
+# Datasets / media / generated data
 # =========================
+data/raw/
+data/processed/
+data/interim/
+datasets/
+clips/
+flat_clips/
+videos/
+exports/
+artifacts/
+rwf2000/
+
 backend/app/data/
 backend/data/sessions/
 backend/data/snapshots/
 backend/app/data/sessions/
 backend/app/data/snapshots/
+
+# Label Studio / annotation export
+label_studio_data/
+media/
+storage/
+backend/label-studio-data/
 
 # 若你不想整包忽略，也可以只忽略特定格式：
 # backend/data/sessions/**/*.jsonl
@@ -75,18 +142,25 @@ backend/app/data/snapshots/
 # backend/app/data/**/*.jpg
 # backend/app/data/**/*.jpeg
 # backend/app/data/**/*.png
+# backend/app/data/**/*.mp4
+# backend/app/data/**/*.avi
 # backend/app/data/**/*.jsonl
 # backend/app/data/**/*.npy
 # backend/app/data/**/meta.json
 
 # =========================
-# Build / cache
+# Training / inference outputs
 # =========================
-.pytest_cache/
-.mypy_cache/
-.cache/
-coverage/
-htmlcov/
+*.npy
+*.npz
+*.h5
+*.hdf5
+*.joblib
+*.pkl
+*.pickle
+*.csv.tmp
+tmp/
+temp/
 
 # =========================
 # OS / editor
@@ -95,3 +169,14 @@ htmlcov/
 Thumbs.db
 .vscode/
 .idea/
+*.swp
+*.swo
+
+# =========================
+# Raw datasets
+# =========================
+data/raw/rwf2000/
+data/raw/clips/
+data/raw/flat_clips/
+data/raw/videos/
+data/processed/
