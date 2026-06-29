@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -11,8 +11,19 @@ class Settings(BaseSettings):
 
     FRONTEND_VERIFY_URL: str = "http://localhost:5173/verify-email"
 
-    class Config:
-        env_file = ".env"
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str
+    SMTP_PASSWORD: str
+    SMTP_FROM: str
+    SMTP_FROM_NAME: str = "Obelisk Security"
+    SMTP_USE_TLS: bool = True
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
 
 settings = Settings()

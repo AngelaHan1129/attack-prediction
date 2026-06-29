@@ -125,31 +125,6 @@ export default function MultiCameraViewer({ isMonitoring, sources }: MultiCamera
     {/* 主面板容器 - 設定 flex-1 填滿剩餘空間，min-h-0 觸發滾動 */}
     <div className={`${glassPanel} flex flex-1 flex-col overflow-hidden min-h-0`}>
       
-      {/* 標題與狀態列 - shrink-0 防止被壓縮 */}
-      <div className="flex shrink-0 flex-col gap-3 px-4 py-4 lg:flex-row lg:items-center lg:justify-between 2xl:px-5">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-400/15 text-emerald-400">
-            <Camera className="h-4 w-4" />
-          </div>
-          <div>
-            <h3 className="text-sm font-black text-black 2xl:text-base">多鏡頭即時監視</h3>
-            <p className="text-[11px] text-black/45 2xl:text-xs">
-              共 {sources.length} 路來源，統一 ReID / Pose 偵測
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="rounded-full bg-white/5 px-3 py-1 text-[11px] font-bold text-white/70">
-            {taskId ? `Task ${taskId.slice(0,8)}...` : '尚未啟動'}
-          </div>
-          <div className={`rounded-full px-3 py-1 text-[11px] font-black ${
-            taskId ? 'bg-emerald-400 text-emerald-950' : 'bg-white/10 text-white/70'
-          }`}>
-            {isStarting ? 'STARTING' : isStopping ? 'STOPPING' : taskId ? 'RUNNING' : 'IDLE'}
-          </div>
-        </div>
-      </div>
 
       {/* 鏡頭畫面滾動區塊 - 這裡是最關鍵的滾動處 */}
       <div className="custom-scrollbar flex-1 overflow-y-auto p-3 2xl:p-4 bg-black/20">
@@ -161,10 +136,6 @@ export default function MultiCameraViewer({ isMonitoring, sources }: MultiCamera
             return (
               <div key={camKey} className={`${glassSection} p-3 flex flex-col`}>
                 <div className="mb-3 flex items-center justify-between shrink-0">
-                  <div>
-                    <h4 className="text-sm font-black text-white">Camera {source}</h4>
-                    <p className="text-[11px] text-white/45">對映 {camKey}</p>
-                  </div>
                   <div className="rounded-full bg-white/5 px-2.5 py-1 text-[10px] font-bold text-white/70">
                     {taskId ? 'LIVE' : 'IDLE'}
                   </div>
