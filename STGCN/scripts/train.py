@@ -1,4 +1,3 @@
-# scripts/train.py
 import os
 import sys
 
@@ -18,7 +17,7 @@ BATCH_SIZE = 16
 EPOCHS = 30
 LEARNING_RATE = 1e-3
 WEIGHT_DECAY = 1e-4
-NUM_CLASSES = 3
+NUM_CLASSES = 2
 NUM_WORKERS = 0
 
 
@@ -76,16 +75,23 @@ def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using device: {device}")
 
-    train_samples_dir = os.path.join(ROOT_DIR, "data", "processed", "train", "samples")
-    train_labels_csv = os.path.join(ROOT_DIR, "data", "processed", "train", "labels.csv")
-    val_samples_dir = os.path.join(ROOT_DIR, "data", "processed", "val", "samples")
-    val_labels_csv = os.path.join(ROOT_DIR, "data", "processed", "val", "labels.csv")
+    packed_dir = os.path.join(ROOT_DIR, "data", "packed")
+    train_data_path = os.path.join(packed_dir, "train_data.npy")
+    train_label_path = os.path.join(packed_dir, "train_label.pkl")
+    val_data_path = os.path.join(packed_dir, "val_data.npy")
+    val_label_path = os.path.join(packed_dir, "val_label.pkl")
 
-    train_dataset = SkeletonDataset(train_samples_dir, train_labels_csv)
-    val_dataset = SkeletonDataset(val_samples_dir, val_labels_csv)
+    train_dataset = SkeletonDataset(train_data_path, train_label_path)
+    val_dataset = SkeletonDataset(val_data_path, val_label_path)
 
     print(f"Train samples: {len(train_dataset)}")
     print(f"Val samples: {len(val_dataset)}")
+
+    sample_x, sample_y = train_dataset[0]
+    print(f"Sample shape: {sample_x.shape}, label: {sample_y}")
+
+    _, T, V, M = sample_x.shape
+    print(f"Detected shape => T={T}, V={V}, M={M}")
 
     train_loader = DataLoader(
         train_dataset,
@@ -104,8 +110,8 @@ def main():
     model = SimpleSTGCN(
         in_channels=3,
         num_class=NUM_CLASSES,
-        num_point=33,
-        num_person=1
+        num_point=V,
+        num_person=M
     ).to(device)
 
     criterion = nn.CrossEntropyLoss()

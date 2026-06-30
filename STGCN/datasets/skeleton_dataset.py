@@ -1,59 +1,50 @@
-# datasets/skeleton_dataset.py
 import os
-import csv
+import pickle
 import numpy as np
 import torch
 from torch.utils.data import Dataset
 
 
 class SkeletonDataset(Dataset):
-    def __init__(self, samples_dir, labels_csv, transform=None):
-        self.samples_dir = samples_dir
-        self.labels_csv = labels_csv
+    def __init__(self, data_path, label_path, transform=None, mmap_mode="r"):
+        self.data_path = data_path
+        self.label_path = label_path
         self.transform = transform
-        self.items = []
 
-        if not os.path.exists(samples_dir):
-            raise FileNotFoundError(f"Samples directory not found: {samples_dir}")
+        if not os.path.exists(data_path):
+            raise FileNotFoundError(f"Data file not found: {data_path}")
 
-        if not os.path.exists(labels_csv):
-            raise FileNotFoundError(f"Labels file not found: {labels_csv}")
+        if not os.path.exists(label_path):
+            raise FileNotFoundError(f"Label file not found: {label_path}")
 
-        with open(labels_csv, "r", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                sample_id = row["sample_id"].strip()
-                label = int(row["label"])
-                sample_path = os.path.join(samples_dir, f"{sample_id}.npy")
+        self.data = np.load(data_path, mmap_mode=mmap_mode)
 
-                if os.path.exists(sample_path):
-                    self.items.append({
-                        "sample_id": sample_id,
-                        "label": label,
-                        "sample_path": sample_path
-                    })
-                else:
-                    print(f"[Warning] Sample file not found, skipped: {sample_path}")
+        with open(label_path, "rb") as f:
+            obj = pickle.load(f)
 
-        if len(self.items) == 0:
-            raise ValueError(f"No valid samples found in {samples_dir} with {labels_csv}")
+        if not isinstance(obj, (list, tuple)) or len(obj) != 2:
+            raise ValueError(f"Label file format invalid: {label_path}")
+
+        self.sample_names, self.labels = obj
+
+        if len(self.data) != len(self.labels):
+            raise ValueError(
+                f"Data/label length mismatch: data={len(self.data)}, labels={len(self.labels)}"
+            )
 
     def __len__(self):
-        return len(self.items)
+        return len(self.labels)
 
     def __getitem__(self, idx):
-        item = self.items[idx]
-        data = np.load(item["sample_path"]).astype(np.float32)  # expected: (C, T, V, M)
+        data = self.data[idx].astype(np.float32)
+        label = int(self.labels[idx])
 
         if data.ndim != 4:
-            raise ValueError(
-                f"Sample {item['sample_id']} shape must be 4D (C, T, V, M), got {data.shape}"
-            )
+            raise ValueError(f"Sample index {idx} shape must be 4D (C,T,V,M), got {data.shape}")
 
         if self.transform is not None:
             data = self.transform(data)
 
         data = torch.tensor(data, dtype=torch.float32)
-        label = torch.tensor(item["label"], dtype=torch.long)
-
+        label = torch.tensor(label, dtype=torch.long)
         return data, label
