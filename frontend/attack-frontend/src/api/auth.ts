@@ -20,11 +20,11 @@ export async function loginApi(email: string, password: string): Promise<TokenRe
   return res.json();
 }
 
-export async function registerApi(email: string, password: string) {
+export async function registerApi(username: string, email: string, password: string) {
   const res = await fetch(`${BASE_URL}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ username, email, password }),
   });
 
   if (!res.ok) {

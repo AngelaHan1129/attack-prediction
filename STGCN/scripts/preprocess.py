@@ -1,66 +1,135 @@
-# scripts/preprocess.py
-import os
 import csv
+from pathlib import Path
+
+import cv2
+import mediapipe as mp
 import numpy as np
 
-SEQ_LEN = 60
-NUM_JOINTS = 33
-NUM_CHANNELS = 3
-NUM_PERSON = 1
+RAW_ROOT = Path(r"C:\Users\User\Desktop\nutc\YS_LAB\研究\attack-prediction\STGCN\data\raw\rwf2000")
+OUT_ROOT = Path(r"C:\Users\User\Desktop\nutc\YS_LAB\研究\attack-prediction\STGCN\data\processed")
+TARGET_T = 60
+VIDEO_EXTS = {".mp4", ".avi", ".mov", ".mkv", ".webm", ".m4v"}
+MODEL_PATH = Path(r"C:\mp_models\pose_landmarker_lite.task")
 
-LABEL_MAP = {
-    "normal": 0,
-    "suspicious": 1,
-    "dangerous": 2
-}
+BaseOptions = mp.tasks.BaseOptions
+PoseLandmarker = mp.tasks.vision.PoseLandmarker
+PoseLandmarkerOptions = mp.tasks.vision.PoseLandmarkerOptions
+VisionRunningMode = mp.tasks.vision.RunningMode
 
-def normalize_keypoints(kpts, img_w, img_h):
-    kpts = np.array(kpts, dtype=np.float32)  # (V, 4) or (V, 3)
-    x = kpts[:, 0] / img_w
-    y = kpts[:, 1] / img_h
-    score = kpts[:, 3] if kpts.shape[1] >= 4 else np.ones(len(kpts), dtype=np.float32)
-    out = np.stack([x, y, score], axis=0)    # (C, V)
-    return out
 
-def build_sequence(frame_keypoints, img_w, img_h):
-    seq = []
-    for kpts in frame_keypoints:
-        if kpts is None:
-            seq.append(np.zeros((NUM_CHANNELS, NUM_JOINTS), dtype=np.float32))
-        else:
-            seq.append(normalize_keypoints(kpts, img_w, img_h))
+def iter_videos(root: Path):
+    for p in sorted(root.rglob("*")):
+        if p.is_file() and p.suffix.lower() in VIDEO_EXTS:
+            yield p
 
-    seq = np.stack(seq, axis=1)  # (C, T, V)
 
-    if seq.shape[1] < SEQ_LEN:
-        pad = np.zeros((NUM_CHANNELS, SEQ_LEN - seq.shape[1], NUM_JOINTS), dtype=np.float32)
-        seq = np.concatenate([seq, pad], axis=1)
+def extract_pose_sequence(video_path: Path, target_t: int = TARGET_T):
+    cap = cv2.VideoCapture(str(video_path))
+    if not cap.isOpened():
+        print(f"[SKIP] cannot open: {video_path}")
+        return None
+
+    if not MODEL_PATH.exists():
+        raise FileNotFoundError(f"Missing model file: {MODEL_PATH}")
+
+    frames = []
+    options = PoseLandmarkerOptions(
+        base_options=BaseOptions(model_asset_path=str(MODEL_PATH)),
+        running_mode=VisionRunningMode.VIDEO,
+        num_poses=1,
+        output_segmentation_masks=False,
+    )
+
+    with PoseLandmarker.create_from_options(options) as landmarker:
+        idx = 0
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+            timestamp_ms = int(cap.get(cv2.CAP_PROP_POS_MSEC))
+
+            result = landmarker.detect_for_video(mp_image, timestamp_ms)
+
+            if result.pose_landmarks and len(result.pose_landmarks) > 0:
+                landmarks = result.pose_landmarks[0]
+                pts = np.array(
+                    [[lm.x, lm.y, lm.visibility] for lm in landmarks],
+                    dtype=np.float32,
+                )
+            else:
+                pts = np.zeros((33, 3), dtype=np.float32)
+
+            frames.append(pts)
+            idx += 1
+
+    cap.release()
+
+    if len(frames) == 0:
+        return None
+
+    seq = np.stack(frames, axis=0)
+
+    if seq.shape[0] >= target_t:
+        seq = seq[:target_t]
     else:
-        seq = seq[:, :SEQ_LEN, :]
+        pad = np.zeros((target_t - seq.shape[0], 33, 3), dtype=np.float32)
+        seq = np.concatenate([seq, pad], axis=0)
 
-    seq = np.expand_dims(seq, axis=-1)  # (C, T, V, M)
+    seq = np.transpose(seq, (2, 0, 1))
+    seq = np.expand_dims(seq, axis=-1)
     return seq
 
-def save_split(output_dir, sample_id, seq, label, csv_writer):
-    os.makedirs(output_dir, exist_ok=True)
-    np.save(os.path.join(output_dir, f"{sample_id}.npy"), seq)
-    csv_writer.writerow([sample_id, LABEL_MAP[label]])
+
+def process_split(split_name: str):
+    split_dir = RAW_ROOT / split_name
+    out_split_dir = OUT_ROOT / split_name
+    out_samples = out_split_dir / "samples"
+    out_samples.mkdir(parents=True, exist_ok=True)
+
+    rows = []
+    count = 0
+
+    for video_path in iter_videos(split_dir):
+        cls = video_path.parent.name
+        label = 1 if cls.lower() == "fight" else 0
+        sample_id = video_path.stem
+
+        print(f"[{split_name}] {video_path.relative_to(RAW_ROOT)}")
+        seq = extract_pose_sequence(video_path)
+        if seq is None:
+            print("  -> skip")
+            continue
+
+        np.save(out_samples / f"{sample_id}.npy", seq)
+        rows.append(
+            {
+                "sample_id": sample_id,
+                "label": label,
+                "class_name": cls,
+                "video_path": str(video_path),
+            }
+        )
+        count += 1
+
+    csv_path = out_split_dir / "labels.csv"
+    with csv_path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(
+            f, fieldnames=["sample_id", "label", "class_name", "video_path"]
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+
+    print(f"[DONE] {split_name}: {count} samples -> {csv_path}")
+
 
 def main():
-    os.makedirs("data/processed/train/samples", exist_ok=True)
+    OUT_ROOT.mkdir(parents=True, exist_ok=True)
+    for split in ["train", "val"]:
+        process_split(split)
 
-    labels_path = "data/processed/train/labels.csv"
-    with open(labels_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(["sample_id", "label"])
-
-        dummy_frames = [
-            [[100, 200, 0.0, 0.95] for _ in range(NUM_JOINTS)]
-            for _ in range(45)
-        ]
-
-        seq = build_sequence(dummy_frames, img_w=1920, img_h=1080)
-        save_split("data/processed/train/samples", "clip_0001", seq, "dangerous", writer)
 
 if __name__ == "__main__":
     main()
