@@ -8,7 +8,7 @@ __pycache__/
 *.so
 *.dylib
 .python-version
-
+STGCN/data/
 # Packaging / build
 build/
 dist/

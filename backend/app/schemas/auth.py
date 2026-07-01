@@ -24,3 +24,7 @@ class VerifyEmailRequest(BaseModel):
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
+
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr

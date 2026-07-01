@@ -1,20 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
-from app.routers import auth, users, yolo
-
-from app.database.session import Base, engine
-from app.models import user  # 確保 User model 被載入
-
+from app.routers import auth, users, yolo, cameras
 
 app = FastAPI(title="Attack Prediction API")
-
-
-@app.on_event("startup")
-def on_startup():
-    Base.metadata.create_all(bind=engine)
-
-
+print("[DEBUG] app.routers.auth loaded")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -29,7 +19,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(yolo.router)
-
+app.include_router(cameras.router)
 
 def custom_openapi():
     if app.openapi_schema:

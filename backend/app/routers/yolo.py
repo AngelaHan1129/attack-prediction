@@ -3,8 +3,9 @@ from pathlib import Path
 from typing import Dict, List
 
 import cv2
-from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import Response
+from pydantic import BaseModel
 
 from app.core.dependencies import require_admin
 from app.core.cv.pipelines.detect import run_detection, stop_events
@@ -18,6 +19,18 @@ SECURITY_SCHEMA = [{"bearer": []}]
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 SNAPSHOT_DIR = BASE_DIR / "data" / "snapshots"
+
+
+class CameraItem(BaseModel):
+    id: str
+    name: str
+    source: str
+    streamUrl: str | None = None
+
+
+class CameraListResponse(BaseModel):
+    count: int
+    cameras: List[CameraItem]
 
 
 def ensure_no_running_task():
@@ -57,6 +70,124 @@ def read_image_response(img_path: Path) -> Response:
         headers=image_no_cache_headers(),
     )
 
+
+@router.get("/cameras", response_model=CameraListResponse)
+async def get_cameras():
+    cameras = []
+    found_sources = set()
+
+    backends = [
+        ("DSHOW", cv2.CAP_DSHOW),
+        ("MSMF", cv2.CAP_MSMF),
+    ]
+
+    for i in range(0, 20):
+        for backend_name, backend in backends:
+            cap = None
+            try:
+                cap = cv2.VideoCapture(i, backend)
+                if not cap.isOpened():
+                    continue
+
+                ok, _ = cap.read()
+                if ok and str(i) not in found_sources:
+                    cameras.append(
+                        {
+                            "id": f"cam{i}",
+                            "name": f"Camera {i}",
+                            "source": str(i),
+                            "streamUrl": None,
+                        }
+                    )
+                    found_sources.add(str(i))
+                    print(f"[camera-detected] index={i}, backend={backend_name}")
+                    break
+            finally:
+                if cap is not None:
+                    cap.release()
+
+    cameras = cameras[:3]
+
+    return {
+        "count": len(cameras),
+        "cameras": cameras,
+    }
+    
+
+    cameras = []
+    found_sources = set()
+
+    backends = [
+        ("DSHOW", cv2.CAP_DSHOW),
+        ("MSMF", cv2.CAP_MSMF),
+    ]
+
+    for i in range(0, 20):
+        detected = False
+
+        for backend_name, backend in backends:
+            cap = None
+            try:
+                cap = cv2.VideoCapture(i, backend)
+                opened = cap.isOpened()
+                print(f"[camera-scan] index={i}, backend={backend_name}, opened={opened}")
+
+                if not opened:
+                    continue
+
+                ok, _ = cap.read()
+                print(f"[camera-scan] index={i}, backend={backend_name}, read_ok={ok}")
+
+                if ok and str(i) not in found_sources:
+                    cameras.append(
+                        {
+                            "id": f"cam{i}",
+                            "name": f"Camera {i}",
+                            "source": str(i),
+                            "streamUrl": None,
+                        }
+                    )
+                    found_sources.add(str(i))
+                    detected = True
+                    break
+
+            except Exception as e:
+                print(f"[camera-scan] index={i}, backend={backend_name}, error={e}")
+
+            finally:
+                if cap is not None:
+                    cap.release()
+
+        if not detected:
+            print(f"[camera-scan] index={i} not available")
+
+    return {
+        "count": len(cameras),
+        "cameras": cameras,
+    }
+
+    cameras = []
+
+    for i in range(0, 10):
+        cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)  # Windows 建議先試 DSHOW
+        if cap is not None and cap.isOpened():
+            ok, _ = cap.read()
+            if ok:
+                cameras.append(
+                    {
+                        "id": f"cam{i}",
+                        "name": f"Camera {i}",
+                        "source": str(i),
+                        "streamUrl": None,
+                    }
+                )
+        if cap is not None:
+            cap.release()
+
+    return {
+        "count": len(cameras),
+        "cameras": cameras,
+    }
 
 @router.post("/start", response_model=dict, openapi_extra={"security": SECURITY_SCHEMA})
 async def start_yolo(

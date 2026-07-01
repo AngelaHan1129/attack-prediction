@@ -1,15 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Clock, Bell, X, Camera, LogOut } from 'lucide-react'
+import { Clock, Bell, X, Camera, LogOut, RefreshCw } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import YoloViewer from '../components/YoloViewer'
-import DualCameraViewer from '../components/DualCameraViewer'
 import MultiCameraViewer from '../components/MultiCameraViewer'
 
 import dashboardBg from '../assets/hlogo_al.png'
 import workspaceOverlay from '../assets/work-space.svg'
 
+const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000'
+
 type RiskLevel = 'L0' | 'L1' | 'L2' | 'L3' | 'L4'
-type ViewMode = 'single' | 'dual' | 'twelve'
+type ViewMode = 'single' | 'multi'
 
 type Alert = {
   id: string
@@ -17,6 +18,18 @@ type Alert = {
   level: RiskLevel
   time: string
   description: string
+}
+
+type CameraItem = {
+  id: string
+  name: string
+  source: string
+  streamUrl?: string
+}
+
+type CameraListResponse = {
+  count: number
+  cameras: CameraItem[]
 }
 
 const glassCard =
@@ -34,27 +47,25 @@ const riskBadgeStyles: Record<RiskLevel, string> = {
 }
 
 const venues: string[] = ['車站A', '車站B', '車站C', '商圈']
-const cameraOptions = Array.from({ length: 12 }, (_, i) => String(i))
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate()
 
   const [currentVenue, setCurrentVenue] = useState<string>(venues[0])
-  const [viewMode, setViewMode] = useState<ViewMode>('twelve')
+  const [viewMode, setViewMode] = useState<ViewMode>('multi')
   const [isMonitoring, setIsMonitoring] = useState<boolean>(false)
   const [selectedCamera, setSelectedCamera] = useState<string>('0')
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [currentTime, setCurrentTime] = useState<Date>(new Date())
 
+  const [cameras, setCameras] = useState<CameraItem[]>([])
+  const [cameraLoading, setCameraLoading] = useState<boolean>(true)
+  const [cameraError, setCameraError] = useState<string>('')
+
   const handleLogout = (): void => {
     localStorage.removeItem('token')
     navigate('/login')
   }
-
-  const twelveSources = useMemo(
-    () => Array.from({ length: 12 }, (_, i) => String(i)),
-    []
-  )
 
   const stats = useMemo(() => {
     const l3Events = alerts.filter((a) => a.level === 'L3').length
@@ -63,9 +74,53 @@ const Dashboard: React.FC = () => {
     return { l3Events, l4Events, handledRate }
   }, [alerts])
 
+  const cameraOptions = useMemo(
+    () => cameras.map((camera) => camera.source),
+    [cameras]
+  )
+
+  const multiSources = useMemo(
+    () => cameras.map((camera) => camera.source),
+    [cameras]
+  )
+
+  const fetchCameras = async () => {
+    try {
+      setCameraLoading(true)
+      setCameraError('')
+
+      const res = await fetch(`${BASE_URL}/yolo/cameras`)
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+      }
+
+      const data: CameraListResponse = await res.json()
+      const nextCameras = Array.isArray(data.cameras) ? data.cameras : []
+
+      setCameras(nextCameras)
+
+      if (nextCameras.length > 0) {
+        const hasSelected = nextCameras.some((camera) => camera.source === selectedCamera)
+        if (!hasSelected) {
+          setSelectedCamera(nextCameras[0].source)
+        }
+      }
+    } catch (err) {
+      console.error(err)
+      setCameraError('無法取得鏡頭資料，請確認 FastAPI /cameras 是否正常')
+      setCameras([])
+    } finally {
+      setCameraLoading(false)
+    }
+  }
+
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    fetchCameras()
   }, [])
 
   useEffect(() => {
@@ -153,13 +208,13 @@ const Dashboard: React.FC = () => {
               </select>
 
               <div className="flex gap-1 rounded-xl bg-slate-900/5 p-1">
-                {(['single', 'dual', 'twelve'] as ViewMode[]).map((m) => (
+                {(['single', 'multi'] as ViewMode[]).map((m) => (
                   <button
                     key={m}
                     onClick={() => setViewMode(m)}
                     className={modeButton(viewMode === m)}
                   >
-                    {m === 'single' ? '1' : m === 'dual' ? '2' : '12'}
+                    {m === 'single' ? '單鏡頭' : `多鏡頭(${cameras.length})`}
                   </button>
                 ))}
               </div>
@@ -171,15 +226,28 @@ const Dashboard: React.FC = () => {
                     value={selectedCamera}
                     onChange={(e) => setSelectedCamera(e.target.value)}
                     className="rounded-md bg-transparent px-1 py-1 text-xs text-slate-700 outline-none"
+                    disabled={cameras.length === 0}
                   >
-                    {cameraOptions.map((cam) => (
-                      <option key={cam} value={cam} className="bg-white text-slate-800">
-                        Cam {cam}
-                      </option>
-                    ))}
+                    {cameraOptions.length === 0 ? (
+                      <option value="">無鏡頭</option>
+                    ) : (
+                      cameraOptions.map((cam) => (
+                        <option key={cam} value={cam} className="bg-white text-slate-800">
+                          Cam {cam}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
               )}
+
+              <button
+                onClick={fetchCameras}
+                className={`${controlButton} flex items-center gap-1.5 bg-slate-200 text-slate-800 hover:bg-slate-300`}
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                <span>刷新鏡頭</span>
+              </button>
 
               <button
                 onClick={() => setIsMonitoring((prev) => !prev)}
@@ -208,46 +276,31 @@ const Dashboard: React.FC = () => {
           <section
             className={`${glassCard} flex min-h-[500px] flex-col p-3 lg:col-span-3 lg:min-h-0 xl:col-span-4`}
           >
-
             <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain custom-scrollbar rounded-lg bg-white/25">
-              {viewMode === 'single' && (
+              {cameraLoading ? (
+                <div className="flex h-full min-h-[300px] items-center justify-center text-sm text-slate-500">
+                  讀取鏡頭中...
+                </div>
+              ) : cameraError ? (
+                <div className="flex h-full min-h-[300px] items-center justify-center text-sm text-red-500">
+                  {cameraError}
+                </div>
+              ) : cameras.length === 0 ? (
+                <div className="flex h-full min-h-[300px] items-center justify-center text-sm text-slate-500">
+                  目前沒有可用鏡頭
+                </div>
+              ) : viewMode === 'single' ? (
                 <YoloViewer isMonitoring={isMonitoring} source={selectedCamera} />
-              )}
-              {viewMode === 'dual' && (
-                <DualCameraViewer
-                  isMonitoring={isMonitoring}
-                  source0="0"
-                  source1="1"
-                />
-              )}
-              {viewMode === 'twelve' && (
+              ) : (
                 <MultiCameraViewer
                   isMonitoring={isMonitoring}
-                  sources={twelveSources}
+                  sources={multiSources}
                 />
               )}
             </div>
           </section>
 
           <aside className="flex min-h-0 flex-col gap-4 lg:col-span-1">
-            {/* <div className={`${glassCard} shrink-0 p-4`}>
-              <h3 className="mb-3 text-xs font-black text-slate-500">數據概況</h3>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 p-2">
-                  <span className="text-xs text-slate-700">L3 事件</span>
-                  <span className="font-bold text-slate-900">{stats.l3Events}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-lg border border-fuchsia-200 bg-fuchsia-50 p-2">
-                  <span className="text-xs text-slate-700">L4 事件</span>
-                  <span className="font-bold text-slate-900">{stats.l4Events}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 p-2">
-                  <span className="text-xs text-slate-700">處理率</span>
-                  <span className="font-bold text-slate-900">{stats.handledRate}%</span>
-                </div>
-              </div>
-            </div> */}
-
             <div
               className={`${glassCard} flex min-h-[300px] flex-1 flex-col overflow-hidden p-4 lg:min-h-0`}
             >

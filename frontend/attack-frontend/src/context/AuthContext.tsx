@@ -1,11 +1,12 @@
 import { createContext, useContext, useState } from "react";
 import type { ReactNode } from "react";
 import { loginApi, registerApi } from "../api/auth";
+import type { RegisterPayload } from "../api/auth";
 
 interface AuthContextType {
   token: string | null;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
+  login: (identifier: string, password: string) => Promise<void>;
+  register: (payload: RegisterPayload) => Promise<void>;
   logout: () => void;
 }
 
@@ -16,15 +17,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.getItem("token")
   );
 
-  const login = async (email: string, password: string) => {
-    const data = await loginApi(email, password);
+  const login = async (identifier: string, password: string) => {
+    const data = await loginApi(identifier, password);
     setToken(data.access_token);
     localStorage.setItem("token", data.access_token);
   };
 
-  const register = async (email: string, password: string) => {
-    await registerApi(email, password);
-    await login(email, password);
+  const register = async (payload: RegisterPayload) => {
+    await registerApi(payload);
   };
 
   const logout = () => {
